@@ -6,12 +6,16 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.Headers;
 import io.undertow.util.StatusCodes;
 
 public class GetHandler implements HttpHandler {
+	private static final Logger logger = LoggerFactory.getLogger(GetHandler.class);
 
 	@Override
 	public void handleRequest(HttpServerExchange hse) throws Exception {
@@ -43,7 +47,7 @@ public class GetHandler implements HttpHandler {
 		String type = mimeType(path);
         String uri = hse.getRequestURI();
         String method = hse.getRequestMethod().toString();
-        System.out.println("==> " + method + "  : " + uri + " : " + type);
+        logger.info("==> " + method + "  : " + uri + " : " + type);
 	    hse.getResponseHeaders().put(Headers.CONTENT_TYPE, type);
 		hse.getResponseSender().send(buff.toString());
 	}

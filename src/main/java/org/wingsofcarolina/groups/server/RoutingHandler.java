@@ -8,8 +8,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class RoutingHandler implements HttpHandler {
-	
+	private static final Logger logger = LoggerFactory.getLogger(RoutingHandler.class);
+
 	private Map<String, Map<String, HttpHandler>> methodMap = new HashMap<String, Map<String, HttpHandler>>();
 
     public RoutingHandler () {
@@ -41,7 +45,7 @@ public class RoutingHandler implements HttpHandler {
         if(handler != null) {
             handler.handleRequest(httpServerExchange);
         } else {
-        	System.out.println("Handler not found .... " + method + " : " + uri);
+        	logger.info("Handler not found .... " + method + " : " + uri);
         }
     }
 }

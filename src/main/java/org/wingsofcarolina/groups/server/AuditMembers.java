@@ -5,6 +5,8 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.GroupListCSV;
 import org.wingsofcarolina.groups.domain.Member;
 
@@ -18,13 +20,15 @@ import io.undertow.util.Headers;
 import io.undertow.util.StatusCodes;
 
 public class AuditMembers implements HttpHandler {
+	private static final Logger logger = LoggerFactory.getLogger(AuditMembers.class);
+
 	@Override
 	public void handleRequest(HttpServerExchange hse) throws Exception {
 		Iterator<Map.Entry<Integer, Member>> iterator;
 
 		String uri = hse.getRequestURI();
 		String method = hse.getRequestMethod().toString();
-		System.out.println("==> " + method + " : " + uri);
+		logger.info("==> " + method + " : " + uri);
 
 		FormData attachment = hse.getAttachment(FormDataParser.FORM_DATA);
 		if (attachment != null) {
@@ -43,11 +47,11 @@ public class AuditMembers implements HttpHandler {
 							Member audit = entry.getValue();
 							Member member = Member.getByEmail(audit.getEmail().toLowerCase());
 							if (member == null) {
-								System.out.println("In Groups.io/Not in Database ==> " + audit.getName() + " : " + audit.getEmail());
+								logger.info("In Groups.io/Not in Database ==> " + audit.getName() + " : " + audit.getEmail());
 							}
 						}
 					} catch (Exception ex) {
-						System.out.println(ex.getMessage());
+						logger.info(ex.getMessage());
 						ex.printStackTrace();
 					}
 				}

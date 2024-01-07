@@ -1,14 +1,11 @@
 package org.wingsofcarolina.groups.server;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Deque;
 import java.util.Iterator;
-
 import org.wingsofcarolina.groups.MemberListXLS;
 import org.wingsofcarolina.groups.domain.Member;
 
@@ -23,8 +20,6 @@ import io.undertow.server.handlers.form.FormDataParser;
 
 public class UploadHandler implements HttpHandler { 
 
-	private static final String DATA_DIR = System.getenv("DATA_DIR");
-	
 	private static ObjectMapper mapper = new ObjectMapper();
 			
     @Override
@@ -44,15 +39,10 @@ public class UploadHandler implements HttpHandler {
 		        FileItem first = members.getFirst().getFileItem();
 		        if (first != null) {
 		        	InputStream is = first.getInputStream();
-		        
-		        	String SAVED_LIST = "/data/Members-saved.xls";
-		        	if (DATA_DIR != null) {
-		        		SAVED_LIST = DATA_DIR + SAVED_LIST;
-		        	}
-					System.out.println("Retrieving previous list from : " + SAVED_LIST);
 					try {
 						MemberListXLS updateList = new MemberListXLS(is);
-						MemberListXLS savedList = new MemberListXLS(new FileInputStream(SAVED_LIST));
+						MemberListXLS savedList = new MemberListXLS(Member.getAll());
+						
 						// First, remove all waitlist and cruft entries
 						boolean found = false;
 						savedList.clean();
@@ -94,7 +84,8 @@ public class UploadHandler implements HttpHandler {
 						ex.printStackTrace();
 					}
 				    
-				    Map<String, List<Member>> response = new HashMap<String, List<Member>>();
+				    Map<String, Object> response = new HashMap<String, Object>();
+//				    response.put("file", basename);
 				    response.put("removed", removed);
 				    response.put("added", added);
 				    String json = mapper.writeValueAsString(response);
@@ -104,6 +95,6 @@ public class UploadHandler implements HttpHandler {
 		        }
 	        }
         }
-    	hse.getResponseSender().send("Upload attempt to Undertow failed");
+    	hse.getResponseSender().send("Upload attempt failed");
     }
 }

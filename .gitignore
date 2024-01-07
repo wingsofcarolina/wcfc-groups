@@ -1,0 +1,16 @@
+*.zip
+*.tgz
+*.dump
+.project
+.classpath
+.settings/
+.DS_Store
+docker/
+log/
+data/
+target/
+/node_modules/
+dependency-reduced-pom.xml
+
+# Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
+!/.mvn/wrapper/maven-wrapper.jar

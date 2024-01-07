@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.jsoup.Jsoup;
 import org.jsoup.select.Elements;
+import org.wingsofcarolina.groups.domain.Member;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
@@ -15,6 +16,10 @@ public class MemberListXLS extends MemberReader {
 		super(is);
 	}
 	
+	public MemberListXLS(List<Member> all) {
+		super(all);
+	}
+
 	@Override
 	public List<String[]> readAllLines(InputStream is) throws IOException  {
 		boolean first = true;

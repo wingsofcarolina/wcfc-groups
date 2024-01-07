@@ -12,14 +12,8 @@
   let valueTypeDate = '';
   let files: FileList | null = null;
 
-  let json = '{ \
-    "Added": ["John Added <john.doe@gmail.com>", "Jane Added <jane.doe@gmail.com>"], \
-    "Removed": ["John Removed <john.doe@gmail.com>", "Jane Removed <jane.doe@gmail.com>"] \
-   }';
-   let initialized = false;
-   $: added = null;
-   $: removed = null;
-
+  $: added = null;
+  $: removed = null;
 
   onMount(function() {
   });
@@ -102,7 +96,7 @@
 
 <NotificationDisplay />
 
-<div class="columns margins">
+<div class="center margins">
   <h3>WCFC Mailing List Update</h3>
 
   {#if !added || !removed}
@@ -153,9 +147,6 @@
 </div>
 
 <style>
-  .columns {
-    width: fit-content;
-  }
   .margins {
     margin: 20px;
     margin-left: 100px;

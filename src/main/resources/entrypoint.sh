@@ -51,5 +51,5 @@ fi
 if [ "$1" == "/bin/sh" ]; then
   exec /bin/sh
 else
-  exec java --add-opens java.base/java.lang=ALL-UNNAMED ${DEBUG_ARGS} -jar groups.jar
+  exec java --add-opens java.base/java.lang=ALL-UNNAMED ${DEBUG_ARGS} -jar wcfc-groups.jar
 fi

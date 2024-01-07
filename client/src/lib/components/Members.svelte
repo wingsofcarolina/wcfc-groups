@@ -22,9 +22,10 @@
 }
 .member {
   margin: 5px;
+  font-size: 14px;
 }
 .label {
-  font-size: 15px;
+  font-size: 16px;
   margin-top: 10px;
   border-bottom: solid;
   display: inline-block;

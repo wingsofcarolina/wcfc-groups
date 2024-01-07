@@ -33,6 +33,14 @@ public abstract class MemberReader {
 		}
 	}
 	
+	public MemberReader(List<Member> all) {
+		Iterator<Member> it = all.iterator();
+		while (it.hasNext()) {
+			Member member = it.next();
+			memberList.put(member.getId(), member);
+		}
+	}
+
 	abstract public List<String[]> readAllLines(InputStream is) throws Exception;
 	
 	public Map<Integer, Member> members() {

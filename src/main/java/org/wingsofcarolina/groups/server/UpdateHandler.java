@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import org.wingsofcarolina.groups.domain.Member;
 import org.wingsofcarolina.groups.http.GroupsIoService;
 
@@ -27,6 +28,7 @@ public class UpdateHandler implements HttpHandler {
         
         hse.startBlocking();
         InputStream is = hse.getInputStream();
+
         Map<String, List<Member>> result = null;
         try {
         	result = mapper.readValue(new InputStreamReader(is), new TypeReference<Map<String, List<Member>>>(){});
@@ -46,12 +48,23 @@ public class UpdateHandler implements HttpHandler {
 		System.out.println("Added   --> " + added.size() + " : " + added);
 		System.out.println("Removed --> " + removed.size() + " : " + removed);
 		
-		if (System.getenv("UPDATES_ALLOWED").equalsIgnoreCase("YES")) {
-			System.out.println("Changes permitted, updating Groups.io membership list.");
-			//if (added.size() > 0) gio.addMultipleMembers(added);
-			//if (removed.size() > 0) gio.removeMultipleMembers(removed);
-		} else {
-			System.out.println("Updates disallowed, skipping real changes.");
+		System.out.println("Updating Groups.io membership list and member database.");
+		if (added.size() > 0) {
+			gio.addMultipleMembers(added);
+			Iterator<Member> it = added.iterator();
+			while (it.hasNext()) {
+				Member member = it.next();
+				member.save();
+			}
+		}
+		if (removed.size() > 0) {
+			gio.removeMultipleMembers(removed);
+			Iterator<Member> it = removed.iterator();
+			while (it.hasNext()) {
+				Member member = it.next();
+				member= Member.getByID(member.getId());
+				member.delete();
+			}
 		}
 		
 		hse.setStatusCode(StatusCodes.OK);

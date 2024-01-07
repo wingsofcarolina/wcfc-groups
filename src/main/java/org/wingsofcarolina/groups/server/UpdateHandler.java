@@ -6,6 +6,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.domain.Member;
 import org.wingsofcarolina.groups.http.GroupsIoService;
 
@@ -18,13 +20,15 @@ import io.undertow.util.Headers;
 import io.undertow.util.StatusCodes;
 
 public class UpdateHandler implements HttpHandler {
+	private static final Logger logger = LoggerFactory.getLogger(UpdateHandler.class);
+
 	private static ObjectMapper mapper = new ObjectMapper();
 
 	@Override
 	public void handleRequest(HttpServerExchange hse) throws Exception {
         String uri = hse.getRequestURI();
         String method = hse.getRequestMethod().toString();
-        System.out.println("==> " + method + " : " + uri);
+        logger.info("==> " + method + " : " + uri);
         
         hse.startBlocking();
         InputStream is = hse.getInputStream();
@@ -32,23 +36,23 @@ public class UpdateHandler implements HttpHandler {
         Map<String, List<Member>> result = null;
         try {
         	result = mapper.readValue(new InputStreamReader(is), new TypeReference<Map<String, List<Member>>>(){});
-            System.out.println("===> " + result);
+            logger.info("===> " + result);
         } catch (Exception ex) {
-        	System.out.println(ex.getMessage());
+        	logger.info(ex.getMessage());
         }
         
         // Log into Groups.io
 		GroupsIoService gio = new GroupsIoService().initialize();
 		String csrf = gio.login("dfrye@wingsofcarolina.org", "Iman1tw1t@1143");
-		System.out.println("csrf ==> " + csrf);
+		logger.info("csrf ==> " + csrf);
 
 		// Remove all members that are not "checked"
 		List<Member>added = clean(result.get("added"));
 		List<Member>removed = clean(result.get("removed"));
-		System.out.println("Added   --> " + added.size() + " : " + added);
-		System.out.println("Removed --> " + removed.size() + " : " + removed);
+		logger.info("Added   --> " + added.size() + " : " + added);
+		logger.info("Removed --> " + removed.size() + " : " + removed);
 		
-		System.out.println("Updating Groups.io membership list and member database.");
+		logger.info("Updating Groups.io membership list and member database.");
 		if (added.size() > 0) {
 			gio.addMultipleMembers(added);
 			Iterator<Member> it = added.iterator();

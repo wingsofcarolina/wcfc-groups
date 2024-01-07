@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.LoggerFactory;
+import org.wingsofcarolina.groups.Groups;
 import org.wingsofcarolina.groups.domain.Member;
 
 import okhttp3.OkHttpClient;
@@ -16,6 +18,8 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class GroupsIoService {
+	private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Groups.class);
+
 	static String BASE_URL = "https://groups.io/api/v1/";
 	
 	private static GroupsIoService instance = null;
@@ -40,7 +44,7 @@ public class GroupsIoService {
 			{
 			    @Override public void log(String message) 
 			    {
-			        System.out.println(message);
+			        logger.info(message);
 			    }
 			});
 			interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
@@ -63,7 +67,7 @@ public class GroupsIoService {
 	
 	@SuppressWarnings("rawtypes")
 	public String login(String email, String password) throws APIException {
-		System.out.println("Invoking login()");
+		logger.info("Invoking login()");
 		Call<Map> call = api.login(email, password);
 		try {
 			Response<Map> response = call.execute();
@@ -74,7 +78,7 @@ public class GroupsIoService {
 				return csrf;
 			} else {
 				APIError error = ErrorUtils.parseError(retrofit, response);
-				System.out.println("Error message -- " + error.message());
+				logger.info("Error message -- " + error.message());
 				throw new APIException(error.message());
 			}
 		} catch (IOException e) {
@@ -110,7 +114,7 @@ public class GroupsIoService {
 	}
 	
 	public boolean addMember(String csrf, String emails) throws APIException {
-		System.out.println("Invoking addMember()");
+		logger.info("Invoking addMember()");
 		Call<Void> call = api.addMember(cookie, csrf, emails, group_id);
 		try {
 			Response<Void> response = call.execute();
@@ -118,7 +122,7 @@ public class GroupsIoService {
 				return true;
 			} else {
 				APIError error = ErrorUtils.parseError(retrofit, response);
-				System.out.println("Error message -- " + error.message());
+				logger.info("Error message -- " + error.message());
 				throw new APIException(error.message());
 			}
 		} catch (IOException e) {
@@ -129,7 +133,7 @@ public class GroupsIoService {
 	
 	
 	public boolean removeMember(String csrf, String emails) throws APIException {
-		System.out.println("Invoking removeMember()");
+		logger.info("Invoking removeMember()");
 		Call<Void> call = api.removeMember(cookie, csrf, group_id, emails);
 		try {
 			Response<Void> response = call.execute();
@@ -137,7 +141,7 @@ public class GroupsIoService {
 				return true;
 			} else {
 				APIError error = ErrorUtils.parseError(retrofit, response);
-				System.out.println("Error message -- " + error.message());
+				logger.info("Error message -- " + error.message());
 				throw new APIException(error.message());
 			}
 		} catch (IOException e) {

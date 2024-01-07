@@ -8,9 +8,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.domain.Member;
 
 public abstract class MemberReader {
+	private static final Logger logger = LoggerFactory.getLogger(MemberReader.class);
+
 	Map<Integer, Member> memberList = new HashMap<Integer, Member>();
 	
 	public MemberReader() {}
@@ -53,7 +57,7 @@ public abstract class MemberReader {
 	
 	public void printAll(String txtFileName) {
 		int i = 0;
-		System.out.println("Lines to write : " + memberList.size());
+		logger.info("Lines to write : " + memberList.size());
         FileWriter fileWriter;
 		try {
 			fileWriter = new FileWriter(txtFileName);
@@ -72,7 +76,7 @@ public abstract class MemberReader {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		System.out.println("Lines written : " + i);
+		logger.info("Lines written : " + i);
 
 	}
 

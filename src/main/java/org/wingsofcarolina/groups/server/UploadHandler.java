@@ -6,6 +6,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Deque;
 import java.util.Iterator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.MemberListXLS;
 import org.wingsofcarolina.groups.domain.Member;
 
@@ -19,6 +22,7 @@ import io.undertow.server.handlers.form.FormData.FormValue;
 import io.undertow.server.handlers.form.FormDataParser;
 
 public class UploadHandler implements HttpHandler { 
+	private static final Logger logger = LoggerFactory.getLogger(UploadHandler.class);
 
 	private static ObjectMapper mapper = new ObjectMapper();
 			
@@ -30,7 +34,7 @@ public class UploadHandler implements HttpHandler {
 
         String uri = hse.getRequestURI();
         String method = hse.getRequestMethod().toString();
-        System.out.println("==> " + method + " : " + uri);
+        logger.info("==> " + method + " : " + uri);
 
         FormData attachment = hse.getAttachment(FormDataParser.FORM_DATA);
         if (attachment != null) {
@@ -50,37 +54,39 @@ public class UploadHandler implements HttpHandler {
 
 						// Look for any new members
 						found = false;
-						System.out.println("\nMembers to be added : \n================================");
+						logger.info("Members to be added : ");
+						logger.info("================================");
 						iterator = updateList.members().entrySet().iterator();
 						while (iterator.hasNext()) {
 							Map.Entry<Integer, Member> entry = iterator.next();
 							Member member = entry.getValue();
 							if (!savedList.hasMember(member)) {
-								System.out.println(member.output());
+								logger.info(member.output());
 								added.add(member);
 								found = true;
 							}
 						}
 						if (!found)
-							System.out.println("No new members added.");
+							logger.info("No new members added.");
 
 						// Look for any removed members
 						found = false;
-						System.out.println("\nMembers to be removed : \n================================");
+						logger.info("Members to be removed : ");
+						logger.info("================================");
 						iterator = savedList.members().entrySet().iterator();
 						while (iterator.hasNext()) {
 							Map.Entry<Integer, Member> entry = iterator.next();
 							Member member = entry.getValue();
 							if (!updateList.hasMember(member)) {
-								System.out.println(member.output());
+								logger.info(member.output());
 								removed.add(member);
 								found = true;
 							}
 						}
 						if (!found)
-							System.out.println("No members removed.");
+							logger.info("No members removed.");
 					} catch (Exception ex) {
-						System.out.println(ex.getMessage());
+						logger.info(ex.getMessage());
 						ex.printStackTrace();
 					}
 				    

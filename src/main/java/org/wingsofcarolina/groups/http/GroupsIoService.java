@@ -18,7 +18,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class GroupsIoService {
-	private static final org.slf4j.Logger logger = LoggerFactory.getLogger(Groups.class);
+	private static final org.slf4j.Logger logger = LoggerFactory.getLogger(GroupsIoService.class);
 
 	static String BASE_URL = "https://groups.io/api/v1/";
 	
@@ -44,7 +44,7 @@ public class GroupsIoService {
 			{
 			    @Override public void log(String message) 
 			    {
-			        logger.info(message);
+			        logger.debug(message);
 			    }
 			});
 			interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
@@ -67,7 +67,7 @@ public class GroupsIoService {
 	
 	@SuppressWarnings("rawtypes")
 	public String login(String email, String password) throws APIException {
-		logger.info("Invoking login()");
+		logger.debug("Invoking login()");
 		Call<Map> call = api.login(email, password);
 		try {
 			Response<Map> response = call.execute();
@@ -105,7 +105,7 @@ public class GroupsIoService {
 			Iterator<Member> it = members.iterator();
 			while (it.hasNext()) {
 				Member member = it.next();
-				removeMember(csrf, member.output());
+				removeMember(csrf, member.getEmail());
 			}
 			return true;
 		} else {
@@ -114,7 +114,7 @@ public class GroupsIoService {
 	}
 	
 	public boolean addMember(String csrf, String emails) throws APIException {
-		logger.info("Invoking addMember()");
+		logger.info("Adding : {}", emails);
 		Call<Void> call = api.addMember(cookie, csrf, emails, group_id);
 		try {
 			Response<Void> response = call.execute();
@@ -133,7 +133,7 @@ public class GroupsIoService {
 	
 	
 	public boolean removeMember(String csrf, String emails) throws APIException {
-		logger.info("Invoking removeMember()");
+		logger.info("Removing : {}", emails);
 		Call<Void> call = api.removeMember(cookie, csrf, group_id, emails);
 		try {
 			Response<Void> response = call.execute();

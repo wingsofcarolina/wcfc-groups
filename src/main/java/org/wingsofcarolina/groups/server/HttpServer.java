@@ -16,7 +16,7 @@ public class HttpServer {
 		handler.addHandler("POST", "/upload", new BlockingHandler(new EagerFormParsingHandler(new UploadHandler())));
 		handler.addHandler("POST", "/update", new BlockingHandler(new UpdateHandler()));
 		handler.addHandler("POST", "/populate", new BlockingHandler(new EagerFormParsingHandler(new PopulateHandler())));
-		handler.addHandler("POST", "/audit", new BlockingHandler(new EagerFormParsingHandler(new AuditMembers())));
+		handler.addHandler("POST", "/test", new BlockingHandler(new TestHandler()));
 		
 		Undertow server = Undertow.builder()
 				.addHttpListener(8080, "0.0.0.0")

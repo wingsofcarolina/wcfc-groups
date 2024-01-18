@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.domain.Member;
 import org.wingsofcarolina.groups.http.GroupsIoService;
+import org.wingsofcarolina.groups.http.ManualsService;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +42,9 @@ public class UpdateHandler implements HttpHandler {
         	logger.info(ex.getMessage());
         }
         
+        // Create service to access the Manuals website for database updates
+		ManualsService mio = new ManualsService().initialize();
+
         // Log into Groups.io
 		GroupsIoService gio = new GroupsIoService().initialize();
 		String csrf = gio.login("dfrye@wingsofcarolina.org", "Iman1tw1t@1143");
@@ -55,6 +59,7 @@ public class UpdateHandler implements HttpHandler {
 		logger.info("Updating Groups.io membership list and member database.");
 		if (added.size() > 0) {
 			gio.addMultipleMembers(added);
+			mio.addMultipleMembers(added);
 			Iterator<Member> it = added.iterator();
 			while (it.hasNext()) {
 				Member member = it.next();
@@ -63,6 +68,7 @@ public class UpdateHandler implements HttpHandler {
 		}
 		if (removed.size() > 0) {
 			gio.removeMultipleMembers(removed);
+			mio.removeMultipleMembers(removed);
 			Iterator<Member> it = removed.iterator();
 			while (it.hasNext()) {
 				Member member = it.next();

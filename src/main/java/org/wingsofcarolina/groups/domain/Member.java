@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
+import dev.morphia.annotations.Transient;
 
 @Entity("Members")
 public class Member {
@@ -22,6 +23,8 @@ public class Member {
 	String name;
 	String email;
 	Integer level;
+	
+	@Transient
 	Boolean checked;
 
 	public Member() {}

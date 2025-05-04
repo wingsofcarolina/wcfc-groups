@@ -1,0 +1,16 @@
+meta {
+  name: Get Member
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://groups.io/api/v1/getmember?group_id={{group_id}}&member_info_id=12744577
+  body: none
+  auth: none
+}
+
+query {
+  group_id: {{group_id}}
+  member_info_id: 12744577
+}

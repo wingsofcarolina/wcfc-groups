@@ -1,0 +1,15 @@
+meta {
+  name: Audit Local Database
+  type: http
+  seq: 8
+}
+
+post {
+  url: localhost:8080/audit
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  groups-io: undefined
+}

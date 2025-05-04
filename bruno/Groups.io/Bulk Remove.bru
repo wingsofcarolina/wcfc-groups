@@ -1,0 +1,17 @@
+meta {
+  name: Bulk Remove
+  type: http
+  seq: 6
+}
+
+post {
+  url: https://groups.io/api/v1/bulkremovemembers
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  csrf: {{csrf_token}}
+  group_id: {{group_id}}
+  emails: dwightrfrye@gmail.com
+}

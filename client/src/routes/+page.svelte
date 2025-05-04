@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import Textfield from '@smui/textfield';
   import Button from '@smui/button';
   import IconButton from '@smui/icon-button';
@@ -15,8 +16,12 @@
   $: added = null;
   $: removed = null;
 
-  onMount(function() {
+  onMount(async () => {
   });
+
+  function goToPDF() {
+    goto('/pdf');
+  }
 
   // Note: the change and input events fire before the `files` prop is updated.
   $: if (files != null && files.length) {
@@ -125,25 +130,26 @@
         </div>
 
         <div class=button >
-          <Button class=button variant="outlined" on:click={() => submit()}>
+          <Button class=button variant="outlined" onclick={() => submit()}>
             <Label>Submit Changes</Label>
           </Button>
         </div>
         <div class=button >
-          <Button class=button variant="outlined" on:click={() => cancel()}>
+          <Button class=button variant="outlined" onclick={() => cancel()}>
             <Label>Cancel</Label>
           </Button>
         </div>
       {:else}
         <div class=prompt>No Membership Changes Detected</div>
         <div class=button >
-          <Button class=button variant="outlined" on:click={() => cancel()}>
+          <Button class=button variant="outlined" onclick={() => cancel()}>
             <Label>Continue</Label>
           </Button>
         </div>
       {/if}
     </div>
   {/if}
+
 </div>
 
 <style>

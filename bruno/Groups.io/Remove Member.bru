@@ -1,0 +1,17 @@
+meta {
+  name: Remove Member
+  type: http
+  seq: 5
+}
+
+post {
+  url: https://groups.io/api/v1/removemember
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  csrf: {{csrf_token}}
+  member_info_id: 12748892
+  group_id: {{group_id}}
+}

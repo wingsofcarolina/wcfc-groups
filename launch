@@ -1,4 +1,4 @@
 #!/bin/sh
 
-ip=`ip route get 8.8.8.8 | head -1 | cut -d' ' -f7`
-docker run -it -d --name wcfc-groups -p 8080:8080 -v $(pwd)/log:/opt/app/log -e MONGODB=mongodb://$ip:27019 reg.planez.co/wcfc-groups:1.5 
+# ip=`ip route get 8.8.8.8 | head -1 | cut -d' ' -f7`
+docker run -it -d --name wcfc-groups -p 8080:8080 -e MONGODB="mongodb://dfrye:Iman1tw1t1143@dfrye.org:27020" -v $(pwd)/log:/opt/app/log reg.planez.co/wcfc-groups:1.7

@@ -25,7 +25,7 @@ public class Persistence {
 	public Persistence initialize(String mongodb) {
 		if (instance == null) {
 			if (mongodb == null || mongodb.isBlank()) {
-				mongodb = "mongodb://localhost:27019"; // Default database location
+				mongodb = "mongodb://localhost:27019"; // Default local database location
 			}
 			logger.info("Connecting to MongoDB with " + mongodb);
 			datastore = Morphia.createDatastore(MongoClients.create(mongodb), "wcfc-groups");

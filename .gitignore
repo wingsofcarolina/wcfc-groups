@@ -5,6 +5,7 @@
 .classpath
 .settings/
 .DS_Store
+/.idea/
 docker/
 log/
 data/

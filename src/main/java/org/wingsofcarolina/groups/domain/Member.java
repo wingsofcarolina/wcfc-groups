@@ -1,128 +1,138 @@
 package org.wingsofcarolina.groups.domain;
 
-import java.util.List;
-
-import org.bson.types.ObjectId;
-import org.wingsofcarolina.groups.domain.dao.MemberDAO;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
 import dev.morphia.annotations.Transient;
+import java.util.List;
+import org.bson.types.ObjectId;
+import org.wingsofcarolina.groups.domain.dao.MemberDAO;
 
 @Entity("Members")
 public class Member {
-	private static MemberDAO dao = new MemberDAO();
 
-	@Id
-	@JsonIgnore
-	private ObjectId dbid;
-	
-	Integer id;
-	String name;
-	String email;
-	Integer level;
-	
-	@Transient
-	Boolean checked;
+  private static MemberDAO dao = new MemberDAO();
 
-	public Member() {}
-	
-	// Note, this is used ONLY for Groups.io auditing!
-	public Member(Integer id, String name, String email) {
-		this.id = id;
-		this.name = name;
-		this.email = email;
-		this.level = -1;
-		this.checked = false;
-	}
-	
-	public Member(Integer id, String fname, String lname, String email, Integer level) {
-		this.id = id;
-		this.name = fname + " " + lname;
-		this.email = email;
-		this.level = level;
-	}
+  @Id
+  @JsonIgnore
+  private ObjectId dbid;
 
-	public Integer getId() {
-		return id;
-	}
+  Integer id;
+  String name;
+  String email;
+  Integer level;
 
-	public void setId(Integer id) {
-		this.id = id;
-	}
+  @Transient
+  Boolean checked;
 
-	public Boolean getChecked() {
-		return checked;
-	}
+  public Member() {}
 
-	public void setChecked(Boolean checked) {
-		this.checked = checked;
-	}
+  // Note, this is used ONLY for Groups.io auditing!
+  public Member(Integer id, String name, String email) {
+    this.id = id;
+    this.name = name;
+    this.email = email;
+    this.level = -1;
+    this.checked = false;
+  }
 
-	public String getName() {
-		return name;
-	}
+  public Member(Integer id, String fname, String lname, String email, Integer level) {
+    this.id = id;
+    this.name = fname + " " + lname;
+    this.email = email;
+    this.level = level;
+  }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+  public Integer getId() {
+    return id;
+  }
 
-	public String getEmail() {
-		return email;
-	}
+  public void setId(Integer id) {
+    this.id = id;
+  }
 
-	public void setEmail(String email) {
-		this.email = email;
-	}
+  public Boolean getChecked() {
+    return checked;
+  }
 
-	public Integer getLevel() {
-		return level;
-	}
+  public void setChecked(Boolean checked) {
+    this.checked = checked;
+  }
 
-	public void setLevel(Integer level) {
-		this.level = level;
-	}
+  public String getName() {
+    return name;
+  }
 
-	public String output() {
-		return name + " <" + email + ">";
-	}
+  public void setName(String name) {
+    this.name = name;
+  }
 
-	@Override
-	public String toString() {
-		return "Member [id=" + id + ", name=" + name + ", email=" + email + ", level=" + level + ", checked=" + checked + "]";
-	}
+  public String getEmail() {
+    return email;
+  }
 
-	/*
-	 * Database Management Functionality
-	 */
-	public static long count() {
-		return dao.count();
-	}
-	
-	public static void drop() {
-		dao.drop();
-	}
-	
-	@SuppressWarnings("unchecked")
-	public static List<Member> getAll() {
-		return (List<Member>) dao.getAll();
-	}
+  public void setEmail(String email) {
+    this.email = email;
+  }
 
-	public static Member getByID(long id) {
-		return (Member) dao.getByID(id);
-	}
+  public Integer getLevel() {
+    return level;
+  }
 
-	public static Member getByEmail(String email) {
-		return (Member) dao.getByEmail(email);
-	}
-	
-	public void save() {
-		dao.save(this);
-	}
-	
-	public void delete() {
-		dao.delete(this);
-	}
+  public void setLevel(Integer level) {
+    this.level = level;
+  }
+
+  public String output() {
+    return name + " <" + email + ">";
+  }
+
+  @Override
+  public String toString() {
+    return (
+      "Member [id=" +
+      id +
+      ", name=" +
+      name +
+      ", email=" +
+      email +
+      ", level=" +
+      level +
+      ", checked=" +
+      checked +
+      "]"
+    );
+  }
+
+  /*
+   * Database Management Functionality
+   */
+  public static long count() {
+    return dao.count();
+  }
+
+  public static void drop() {
+    dao.drop();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static List<Member> getAll() {
+    return (List<Member>) dao.getAll();
+  }
+
+  public static Member getByID(long id) {
+    return (Member) dao.getByID(id);
+  }
+
+  public static Member getByEmail(String email) {
+    return (Member) dao.getByEmail(email);
+  }
+
+  public void save() {
+    dao.save(this);
+  }
+
+  public void delete() {
+    dao.delete(this);
+  }
 }

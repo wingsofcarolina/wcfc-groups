@@ -1,95 +1,99 @@
 package org.wingsofcarolina.groups.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.util.Headers;
+import io.undertow.util.StatusCodes;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.domain.Member;
 import org.wingsofcarolina.groups.http.GroupsIoService;
 import org.wingsofcarolina.groups.http.ManualsService;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.undertow.server.HttpHandler;
-import io.undertow.server.HttpServerExchange;
-import io.undertow.util.Headers;
-import io.undertow.util.StatusCodes;
-
 public class UpdateHandler implements HttpHandler {
-	private static final Logger logger = LoggerFactory.getLogger(UpdateHandler.class);
 
-	private static ObjectMapper mapper = new ObjectMapper();
+  private static final Logger logger = LoggerFactory.getLogger(UpdateHandler.class);
 
-	@Override
-	public void handleRequest(HttpServerExchange hse) throws Exception {
-        String uri = hse.getRequestURI();
-        String method = hse.getRequestMethod().toString();
-        logger.info("==> " + method + " : " + uri);
-        
-        hse.startBlocking();
-        InputStream is = hse.getInputStream();
+  private static ObjectMapper mapper = new ObjectMapper();
 
-        Map<String, List<Member>> result = null;
-        try {
-        	result = mapper.readValue(new InputStreamReader(is), new TypeReference<Map<String, List<Member>>>(){});
-            logger.info("===> " + result);
-        } catch (Exception ex) {
-        	logger.info(ex.getMessage());
-        }
-        
-        // Create service to access the Manuals website for database updates
-		ManualsService mio = new ManualsService().initialize();
+  @Override
+  public void handleRequest(HttpServerExchange hse) throws Exception {
+    String uri = hse.getRequestURI();
+    String method = hse.getRequestMethod().toString();
+    logger.info("==> " + method + " : " + uri);
 
-        // Log into Groups.io
-		GroupsIoService gio = new GroupsIoService().initialize();
-		String csrf = gio.login("dfrye@wingsofcarolina.org", "Iman1tw1t@1143");
-		logger.info("csrf ==> " + csrf);
+    hse.startBlocking();
+    InputStream is = hse.getInputStream();
 
-		// Remove all members that are not "checked"
-		List<Member>added = clean(result.get("added"));
-		List<Member>removed = clean(result.get("removed"));
-		logger.info("Added   --> " + added.size() + " : " + added);
-		logger.info("Removed --> " + removed.size() + " : " + removed);
-		
-		logger.info("Updating Groups.io membership list and member database.");
-		if (added.size() > 0) {
-			gio.addMultipleMembers(added);
-			mio.addMultipleMembers(added);
-			Iterator<Member> it = added.iterator();
-			while (it.hasNext()) {
-				Member member = it.next();
-				member.save();
-			}
-		}
-		if (removed.size() > 0) {
-			gio.removeMultipleMembers(removed);
-			mio.removeMultipleMembers(removed);
-			Iterator<Member> it = removed.iterator();
-			while (it.hasNext()) {
-				Member member = it.next();
-				member= Member.getByID(member.getId());
-				member.delete();
-			}
-		}
-		
-		hse.setStatusCode(StatusCodes.OK);
-	    hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/html");
-	    hse.getResponseSender().send("{ \"code\": 200, \"message\" : \"Membership List Updated\" }");
-	}
-	
-	List<Member> clean(List<Member> members) {
-		Iterator<Member> removedIt = members.iterator();
-		while (removedIt.hasNext()) {
-			Member member = removedIt.next();
-			if (member.getChecked() == false) {
-				removedIt.remove();
-			}
-		}
-		return members;
-	}
+    Map<String, List<Member>> result = null;
+    try {
+      result =
+        mapper.readValue(
+          new InputStreamReader(is),
+          new TypeReference<Map<String, List<Member>>>() {}
+        );
+      logger.info("===> " + result);
+    } catch (Exception ex) {
+      logger.info(ex.getMessage());
+    }
+
+    // Create service to access the Manuals website for database updates
+    ManualsService mio = new ManualsService().initialize();
+
+    // Log into Groups.io
+    GroupsIoService gio = new GroupsIoService().initialize();
+    String csrf = gio.login("dfrye@wingsofcarolina.org", "Iman1tw1t@1143");
+    logger.info("csrf ==> " + csrf);
+
+    // Remove all members that are not "checked"
+    List<Member> added = clean(result.get("added"));
+    List<Member> removed = clean(result.get("removed"));
+    logger.info("Added   --> " + added.size() + " : " + added);
+    logger.info("Removed --> " + removed.size() + " : " + removed);
+
+    logger.info("Updating Groups.io membership list and member database.");
+    if (added.size() > 0) {
+      gio.addMultipleMembers(added);
+      mio.addMultipleMembers(added);
+      Iterator<Member> it = added.iterator();
+      while (it.hasNext()) {
+        Member member = it.next();
+        member.save();
+      }
+    }
+    if (removed.size() > 0) {
+      gio.removeMultipleMembers(removed);
+      mio.removeMultipleMembers(removed);
+      Iterator<Member> it = removed.iterator();
+      while (it.hasNext()) {
+        Member member = it.next();
+        member = Member.getByID(member.getId());
+        member.delete();
+      }
+    }
+
+    hse.setStatusCode(StatusCodes.OK);
+    hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/html");
+    hse
+      .getResponseSender()
+      .send("{ \"code\": 200, \"message\" : \"Membership List Updated\" }");
+  }
+
+  List<Member> clean(List<Member> members) {
+    Iterator<Member> removedIt = members.iterator();
+    while (removedIt.hasNext()) {
+      Member member = removedIt.next();
+      if (member.getChecked() == false) {
+        removedIt.remove();
+      }
+    }
+    return members;
+  }
 }

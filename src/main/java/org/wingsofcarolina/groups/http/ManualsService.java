@@ -101,6 +101,16 @@ public class ManualsService {
       } else {
         APIError error = ErrorUtils.parseError(retrofit, response);
         logger.info("Error message -- " + error.message());
+
+        // If user already exists, treat it as success since the desired outcome is achieved
+        if (
+          error.message() != null &&
+          error.message().toLowerCase().contains("user already exists")
+        ) {
+          logger.info("User already exists, continuing processing as success");
+          return true;
+        }
+
         throw new APIException(error.message());
       }
     } catch (IOException e) {

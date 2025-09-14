@@ -5,25 +5,18 @@ meta {
 }
 
 get {
-  url: https://groups.io/api/v1/login?email=dfrye@wingsofcarolina.org&password=Iman1tw1t@1143
+  url: https://groups.io/api/v1/login?email={{email}}&password={{password}}
   body: json
   auth: none
 }
 
-query {
-  email: dfrye@wingsofcarolina.org
-  password: Iman1tw1t@1143
+params:query {
+  email: {{email}}
+  password: {{password}}
 }
 
 headers {
   Content-Type: application/json
   Accept: application/json
   Authorization: Bearer {{token}}
-}
-
-body:json {
-  {
-    "email":"herbie@openweave.org",
-    "password":"gaggle123"
-  }
 }

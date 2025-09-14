@@ -26,9 +26,25 @@ public class ManualsService {
 
   private Retrofit retrofit;
   private ManualsAPI api;
-  private String WCFC_TOKEN = "adfasd58df57a8adf68dsafd";
+  private String WCFC_TOKEN;
 
-  public ManualsService() {}
+  public ManualsService() {
+    // Get WCFC_TOKEN from environment variable
+    WCFC_TOKEN = System.getenv("WCFC_TOKEN");
+    if (WCFC_TOKEN == null || WCFC_TOKEN.trim().isEmpty()) {
+      logger.error(
+        "WCFC_TOKEN environment variable is not set or is empty. Please set this environment variable before starting the application."
+      );
+      System.err.println(
+        "ERROR: WCFC_TOKEN environment variable is required but not set."
+      );
+      System.err.println(
+        "Please set the WCFC_TOKEN environment variable and restart the application."
+      );
+      System.exit(1);
+    }
+    logger.info("WCFC_TOKEN loaded from environment variable");
+  }
 
   public static ManualsService instance() {
     return instance;

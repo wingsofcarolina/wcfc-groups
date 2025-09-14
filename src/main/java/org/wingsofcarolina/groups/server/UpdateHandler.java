@@ -47,10 +47,20 @@ public class UpdateHandler implements HttpHandler {
     // Create service to access the Manuals website for database updates
     ManualsService mio = new ManualsService().initialize();
 
-    // Log into Groups.io
+    // Initialize Groups.io service with API key
     GroupsIoService gio = new GroupsIoService().initialize();
-    String csrf = gio.login("dfrye@wingsofcarolina.org", "Iman1tw1t@1143");
-    logger.info("csrf ==> " + csrf);
+    String apiKey = System.getenv("GROUPS_IO_API_KEY");
+    if (apiKey == null || apiKey.trim().isEmpty()) {
+      logger.error("GROUPS_IO_API_KEY environment variable is not set");
+      hse.setStatusCode(StatusCodes.INTERNAL_SERVER_ERROR);
+      hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+      hse
+        .getResponseSender()
+        .send("{ \"code\": 500, \"message\" : \"API key not configured\" }");
+      return;
+    }
+    gio.setApiKey(apiKey);
+    logger.info("Groups.io service initialized with API key");
 
     // Remove all members that are not "checked"
     List<Member> added = clean(result.get("added"));
@@ -80,7 +90,7 @@ public class UpdateHandler implements HttpHandler {
     }
 
     hse.setStatusCode(StatusCodes.OK);
-    hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/html");
+    hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
     hse
       .getResponseSender()
       .send("{ \"code\": 200, \"message\" : \"Membership List Updated\" }");

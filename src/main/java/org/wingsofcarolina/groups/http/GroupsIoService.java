@@ -3,12 +3,10 @@ package org.wingsofcarolina.groups.http;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Logger;
 import org.slf4j.LoggerFactory;
-import org.wingsofcarolina.groups.Groups;
 import org.wingsofcarolina.groups.domain.Member;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -27,9 +25,8 @@ public class GroupsIoService {
 
   private Retrofit retrofit;
   private GroupsIoAPI api;
-  private String csrf = null;
+  private String apiKey = null;
   private String group_id = "121229"; // Wings-of-Carolina, hopefully immutable
-  private String cookie = null;
 
   public GroupsIoService() {}
 
@@ -66,34 +63,21 @@ public class GroupsIoService {
     return instance;
   }
 
-  @SuppressWarnings("rawtypes")
-  public String login(String email, String password) throws APIException {
-    logger.debug("Invoking login()");
-    Call<Map> call = api.login(email, password);
-    try {
-      Response<Map> response = call.execute();
-      List<String> Cookielist = response.headers().values("Set-Cookie");
-      cookie = (Cookielist.get(0).split(";"))[0];
-      if (response.isSuccessful()) {
-        csrf = (String) ((Map) response.body().get("user")).get("csrf_token");
-        return csrf;
-      } else {
-        APIError error = ErrorUtils.parseError(retrofit, response);
-        logger.info("Error message -- " + error.message());
-        throw new APIException(error.message());
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return null;
+  public void setApiKey(String apiKey) {
+    logger.debug("Setting API key for authentication");
+    this.apiKey = apiKey;
+  }
+
+  private String getBearerToken() {
+    return "Bearer " + apiKey;
   }
 
   public boolean addMultipleMembers(List<Member> members) throws APIException {
-    if (csrf != null && members.size() > 0) {
+    if (apiKey != null && members.size() > 0) {
       Iterator<Member> it = members.iterator();
       while (it.hasNext()) {
         Member member = it.next();
-        addMember(csrf, member.output());
+        addMember(member.output());
       }
       return true;
     } else {
@@ -102,11 +86,11 @@ public class GroupsIoService {
   }
 
   public boolean removeMultipleMembers(List<Member> members) throws APIException {
-    if (csrf != null && members.size() > 0) {
+    if (apiKey != null && members.size() > 0) {
       Iterator<Member> it = members.iterator();
       while (it.hasNext()) {
         Member member = it.next();
-        removeMember(csrf, member.getEmail());
+        removeMember(member.getEmail());
       }
       return true;
     } else {
@@ -114,9 +98,9 @@ public class GroupsIoService {
     }
   }
 
-  public boolean addMember(String csrf, String emails) throws APIException {
+  public boolean addMember(String emails) throws APIException {
     logger.info("Adding : {}", emails);
-    Call<Void> call = api.addMember(cookie, csrf, emails, group_id);
+    Call<Void> call = api.addMember(getBearerToken(), emails, group_id);
     try {
       Response<Void> response = call.execute();
       if (response.isSuccessful()) {
@@ -132,9 +116,9 @@ public class GroupsIoService {
     return false;
   }
 
-  public boolean removeMember(String csrf, String emails) throws APIException {
+  public boolean removeMember(String emails) throws APIException {
     logger.info("Removing : {}", emails);
-    Call<Void> call = api.removeMember(cookie, csrf, group_id, emails);
+    Call<Void> call = api.removeMember(getBearerToken(), group_id, emails);
     try {
       Response<Void> response = call.execute();
       if (response.isSuccessful()) {

@@ -1,4 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
-# ip=`ip route get 8.8.8.8 | head -1 | cut -d' ' -f7`
-docker run -it -d --name wcfc-groups -p 8080:8080 -e MONGODB="mongodb://dfrye:SECRET@dfrye.org:27020" -v $(pwd)/log:/opt/app/log reg.planez.co/wcfc-groups:1.7
+for SECRET in wcfc-apps-mongodb wcfc-apps-groups-io wcfc-apps-WCFC_TOKEN; do
+  if ! podman secret exists $SECRET; then
+    echo "Please set up Podman secrets before running this pod"
+    exit 1
+  fi
+done
+
+podman rm -f wcfc-groups
+podman run --rm -it -d --name wcfc-groups -p 8080:8080 \
+  --secret=wcfc-apps-mongodb,type=env,target=MONGODB \
+  --secret=wcfc-apps-groups-io,type=env,target=GROUPS_IO_API_KEY \
+  --secret=wcfc-apps-WCFC_TOKEN,type=env,target=WCFC_TOKEN \
+  -v $(pwd)/log:/opt/app/log \
+ localhost/wcfc-groups:latest

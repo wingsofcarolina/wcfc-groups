@@ -7,6 +7,22 @@ $(APP_JAR): pom.xml client/node_modules $(JAVA_FILES)
 
 client/node_modules: client/package.json client/package-lock.json
 	@cd client && npm install --legacy-peer-deps
+	@touch client/node_modules
+
+docker/.build: $(APP_JAR)
+	@cd docker && podman build . -t wcfc-groups
+	@touch docker/.build
+
+.PHONY: launch
+launch: docker/.build
+	@echo Launching app...
+	@./launch
+	@echo App should be running at http://localhost:8080
+
+.PHONY: shutdown
+shutdown:
+	@echo Shutting down app...
+	@podman rm -f wcfc-groups
 
 .PHONY: format
 format:

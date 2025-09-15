@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+  echo "Usage: launch <image-tag>"
+  exit 1
+fi
+
 for SECRET in wcfc-apps-mongodb wcfc-apps-groups-io wcfc-apps-WCFC_TOKEN; do
   if ! podman secret exists $SECRET; then
     echo "Please set up Podman secrets before running this pod"
@@ -13,4 +18,4 @@ podman run --rm -it -d --name wcfc-groups -p 8080:8080 \
   --secret=wcfc-apps-groups-io,type=env,target=GROUPS_IO_API_KEY \
   --secret=wcfc-apps-WCFC_TOKEN,type=env,target=WCFC_TOKEN \
   -v $(pwd)/log:/opt/app/log \
- localhost/wcfc-groups:latest
+ $1

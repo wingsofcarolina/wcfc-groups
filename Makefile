@@ -1,6 +1,7 @@
 APP_VERSION := $(shell mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 APP_JAR := target/wcfc-groups-$(APP_VERSION).jar
 JAVA_FILES := $(shell find src/main/java/org/wingsofcarolina -name '*.java')
+CONTAINER_TAG := us-central1-docker.pkg.dev/wcfc-apps/wcfc-apps/wcfc-groups:$(APP_VERSION)
 
 $(APP_JAR): pom.xml client/node_modules $(JAVA_FILES)
 	@mvn
@@ -10,13 +11,20 @@ client/node_modules: client/package.json client/package-lock.json
 	@touch client/node_modules
 
 docker/.build: $(APP_JAR)
-	@cd docker && podman build . -t wcfc-groups
+	@cd docker && podman build . -t $(CONTAINER_TAG)
 	@touch docker/.build
+
+.PHONY: build
+build: docker/.build
+
+.PHONY: push
+push: docker/.build
+	@podman push $(CONTAINER_TAG)
 
 .PHONY: launch
 launch: docker/.build
 	@echo Launching app...
-	@./launch
+	@./launch $(CONTAINER_TAG)
 	@echo App should be running at http://localhost:8080
 
 .PHONY: shutdown

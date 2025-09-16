@@ -181,7 +181,7 @@
             </goals>
             <configuration>
               <target>
-                <exec dir="./client" executable="/usr/bin/npm">
+                <exec dir="./client" executable="npm">
                   <arg line="run build"/>
                 </exec>
                 <delete dir="./target/classes/assets"/>

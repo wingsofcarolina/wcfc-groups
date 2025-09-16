@@ -42,6 +42,6 @@ jobs:
       run: mvn compile
 
     - name: Run NPM checks
-      run: npm run check
+      run: npm install --legacy-peer-deps && npm run check
       working-directory: ./client
 

@@ -24,7 +24,7 @@ jobs:
 
     steps:
     - name: Install xmllint
-      run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+      run: sudo rm -f /var/lib/man-db/auto-update && sudo apt-get update && sudo apt-get install -y libxml2-utils
 
     - name: Checkout repository
       uses: actions/checkout@v5

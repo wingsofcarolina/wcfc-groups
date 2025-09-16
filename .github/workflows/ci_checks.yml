@@ -23,17 +23,17 @@ jobs:
       security-events: write
 
     steps:
+    - name: Install xmllint
+      run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
     - name: Checkout repository
       uses: actions/checkout@v5
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
 
     - name: Check code formatting
       run: make check-format
@@ -44,4 +44,13 @@ jobs:
     - name: Run NPM checks
       run: npm run check
       working-directory: ./client
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
 

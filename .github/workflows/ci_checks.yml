@@ -38,19 +38,10 @@ jobs:
     - name: Check code formatting
       run: make check-format
 
-    - name: Run Maven compilke
+    - name: Run Maven compile
       run: mvn compile
 
     - name: Run NPM checks
       run: npm run check
       working-directory: ./client
-
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
 

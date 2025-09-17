@@ -30,6 +30,7 @@ build: docker/.build
 
 .PHONY: push
 push: docker/.build
+	@echo Pushing $(CONTAINER_TAG)...
 	@podman push $(CONTAINER_TAG)
 
 .PHONY: launch
@@ -41,7 +42,7 @@ launch: docker/.build
 .PHONY: shutdown
 shutdown:
 	@echo Shutting down app...
-	@podman rm -f wcfc-groups
+	@podman rm -f $(APP_NAME)
 
 .PHONY: format
 format: client/node_modules

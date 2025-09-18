@@ -27,8 +27,8 @@
 		"globals": "^16.0.0",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
-		"svelte": "^5.39.0",
-		"vite": "^7.1.5"
+		"svelte": "^5.39.2",
+		"vite": "^7.1.6"
 	},
 	"dependencies": {
 		"@beyonk/svelte-notifications": "^4.3.0",

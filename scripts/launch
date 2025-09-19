@@ -5,15 +5,23 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+if $(which podman); then
+  CONTAINER_CMD=podman
+elif $(which docker); then
+  CONTAINER_CMD=docker
+fi
+
 for SECRET in wcfc-apps-mongodb wcfc-apps-groups-io wcfc-apps-WCFC_TOKEN; do
-  if ! podman secret exists $SECRET; then
+  if ! ${CONTAINER_CMD} secret exists $SECRET; then
     echo "Please set up Podman secrets before running this pod"
     exit 1
   fi
 done
 
-podman rm -f wcfc-groups
-podman run -d --name wcfc-groups -p 8080:8080 \
+mkdir -p $(pdw)/log
+
+${CONTAINER_CMD} rm -f wcfc-groups
+${CONTAINER_CMD} run -d --name wcfc-groups -p 8080:8080 \
   --secret=wcfc-apps-mongodb,type=env,target=MONGODB \
   --secret=wcfc-apps-groups-io,type=env,target=GROUPS_IO_API_KEY \
   --secret=wcfc-apps-WCFC_TOKEN,type=env,target=WCFC_TOKEN \

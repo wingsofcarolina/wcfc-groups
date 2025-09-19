@@ -21,7 +21,7 @@ done
 mkdir -p $(pdw)/log
 
 ${CONTAINER_CMD} rm -f wcfc-groups
-${CONTAINER_CMD} run -d --name wcfc-groups -p 8080:8080 \
+${CONTAINER_CMD} run -d --name wcfc-groups -p 9301:9301 \
   --secret=wcfc-apps-mongodb,type=env,target=MONGODB \
   --secret=wcfc-apps-groups-io,type=env,target=GROUPS_IO_API_KEY \
   --secret=wcfc-apps-WCFC_TOKEN,type=env,target=WCFC_TOKEN \

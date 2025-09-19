@@ -5,9 +5,9 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-if $(which podman); then
+if [ -x "$(which podman)" ]; then
   CONTAINER_CMD=podman
-elif $(which docker); then
+elif [ -x "$(which docker)" ]; then
   CONTAINER_CMD=docker
 else
   echo "Neither podman nor docker are installed"
@@ -15,7 +15,7 @@ else
 fi
 
 for SECRET in wcfc-apps-mongodb wcfc-apps-groups-io wcfc-apps-WCFC_TOKEN; do
-  if ! ${CONTAINER_CMD} secret exists $SECRET; then
+  if ! echo ${CONTAINER_CMD} secret exists $SECRET; then
     echo "Please set up Podman secrets before running this pod"
     exit 1
   fi

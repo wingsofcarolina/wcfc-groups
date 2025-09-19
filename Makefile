@@ -44,6 +44,10 @@ shutdown:
 	@echo Shutting down app...
 	@podman rm -f $(APP_NAME)
 
+.PHONY: integration-tests
+integration-tests: docker/$(APP_NAME).jar
+	@integration-tests/run-integration-tests.sh
+
 .PHONY: format
 format: client/node_modules
 	@echo Formatting pom.xml files...

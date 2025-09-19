@@ -21,7 +21,9 @@ client/node_modules: client/package.json client/package-lock.json
 	@cd client && npm install --legacy-peer-deps
 	@touch client/node_modules
 
-docker/.build: $(APP_JAR)
+docker/$(APP_NAME).jar: $(APP_JAR)
+
+docker/.build: docker/$(APP_NAME).jar
 	@cd docker && $(CONTAINER_CMD) build . -t $(CONTAINER_TAG)
 	@touch docker/.build
 
@@ -70,6 +72,7 @@ version:
 .PHONY: clean
 clean:
 	@rm -rfv target/ docker/ client/build/ client/dist/ client/.sveltekit/
+	@find integration-tests/output/ -mindepth 1 -not -name .gitignore -delete
 
 .PHONY: distclean
 distclean: clean

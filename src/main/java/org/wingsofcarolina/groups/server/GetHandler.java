@@ -51,7 +51,12 @@ public class GetHandler implements HttpHandler {
   }
 
   private String mimeType(String path) {
-    String ext = getExtension(path).get();
+    Optional<String> extOpt = getExtension(path);
+    if (!extOpt.isPresent()) {
+      return "text/html"; // Default to HTML for paths without extensions (like "/")
+    }
+
+    String ext = extOpt.get();
     switch (ext) {
       case "html":
         return "text/html";

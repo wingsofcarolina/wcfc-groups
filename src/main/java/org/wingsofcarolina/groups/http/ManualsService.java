@@ -20,7 +20,10 @@ public class ManualsService {
     ManualsService.class
   );
 
-  static String BASE_URL = "https://manuals.wingsofcarolina.org/api/member/";
+  static String BASE_URL = System.getProperty(
+    "manuals.base.url",
+    "https://manuals.wingsofcarolina.org/api/member/"
+  );
 
   private static ManualsService instance = null;
 

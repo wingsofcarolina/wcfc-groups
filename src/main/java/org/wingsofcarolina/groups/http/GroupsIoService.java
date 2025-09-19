@@ -19,7 +19,10 @@ public class GroupsIoService {
     GroupsIoService.class
   );
 
-  static String BASE_URL = "https://groups.io/api/v1/";
+  static String BASE_URL = System.getProperty(
+    "groupsio.base.url",
+    "https://groups.io/api/v1/"
+  );
 
   private static GroupsIoService instance = null;
 

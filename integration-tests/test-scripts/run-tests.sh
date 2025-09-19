@@ -43,13 +43,9 @@ done
 echo -e "Setting up test data..."
 python3 /app/test-scripts/setup-test-data.py
 
-# Setup WireMock stubs
-echo -e "Setting up WireMock stubs..."
-python3 /app/test-scripts/setup-wiremock.py
-
 # Start the application in the background
 echo -e "Starting WCFC Groups application..."
-java -jar /app/wcfc-groups.jar &
+java $JAVA_OPTS -jar /app/wcfc-groups.jar &
 APP_PID=$!
 
 # Wait for application to start
@@ -72,6 +68,10 @@ done
 # Run the Playwright test
 echo -e "Running Playwright update flow test..."
 python3 /app/test-scripts/update-flow-test.py
+
+# Export MongoDB data
+echo -e "Exporting MongoDB data..."
+mongoexport -d wcfc-groups -c Members > /app/output/mongodb-members.json
 
 # Check test results
 if [ $? -eq 0 ]; then

@@ -20,7 +20,7 @@ def setup_mongodb_data():
     
     # Connect to MongoDB
     client = MongoClient('mongodb://localhost:27017/')
-    db = client['wcfc-groups-test']
+    db = client['wcfc-groups']
     
     # Clear existing data
     db.Members.drop()
@@ -29,22 +29,31 @@ def setup_mongodb_data():
     # Create test member data
     test_members = [
         {
+            "_t": "Member",
             "id": 1001,
             "memberId": 1001,
             "name": "Test User",
             "email": "test@example.com",
             "level": 3,
             "admin": False,
-            "uuid": str(uuid.uuid4())
         },
         {
+            "_t": "Member",
             "id": 1003,
             "memberId": 1003,
             "name": "Jane Pilot",
             "email": "jane.pilot@example.com",
-            "level": 2,
+            "level": 3,
             "admin": False,
-            "uuid": str(uuid.uuid4())
+        },
+        {
+            "_t": "Member",
+            "id": 1004,
+            "memberId": 1004,
+            "name": "Bob Smith",
+            "email": "bob.smith@example.com",
+            "level": 3,
+            "admin": False,
         }
     ]
     
@@ -52,7 +61,7 @@ def setup_mongodb_data():
     print(f"Inserted {len(test_members)} test member records")
     
     # Create sequence counters
-    db.counters.insert_one({"_id": "members", "seq": 1003})
+    db.counters.insert_one({"_id": "members", "seq": 1005})
     
     print("MongoDB test data setup completed successfully!")
     

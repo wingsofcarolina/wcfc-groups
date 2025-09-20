@@ -1,20 +1,13 @@
----
-name: ci_checks
+name: Release to production on tag push
 
 on:
-
-  pull_request:
-    branches:
-      - main
-
   push:
-    branches:
-      - main
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'  # version numbers, like 1.2.3
 
 jobs:
-
-  ci:
-    name: ci
+  build-and-release:
+    name: build-and-release
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -23,8 +16,6 @@ jobs:
       security-events: write
 
     steps:
-    - name: Install xmllint
-      run: sudo rm -f /var/lib/man-db/auto-update && sudo apt-get update && sudo apt-get install -y libxml2-utils
 
     - name: Checkout repository
       uses: actions/checkout@v5
@@ -43,13 +34,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
 
-    - name: Check code formatting
-      run: make check-format
-
-    - name: Run NPM checks
-      run: npm install --legacy-peer-deps && npm run check
-      working-directory: ./client
-
     - name: Build the app
       run: make build
 
@@ -62,4 +46,17 @@ jobs:
 
     - name: Run integration tests
       run: make integration-tests
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GOOGLE_CLOUD_JSON }}
+
+    - name: Set up Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v3
+      with:
+        version: '>= 363.0.0'
+
+    - name: Deploy to Google Cloud
+      run: make deploy
 

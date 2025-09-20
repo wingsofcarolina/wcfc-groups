@@ -9,6 +9,7 @@ jobs:
   build-and-release:
     name: build-and-release
     runs-on: ubuntu-latest
+    environment: Google Cloud
     permissions:
       actions: read
       contents: read

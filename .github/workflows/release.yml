@@ -58,6 +58,9 @@ jobs:
       with:
         version: '>= 363.0.0'
 
+    - name: Set up gcloud Docker credential helper
+      run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
     - name: Deploy to Google Cloud
       run: make deploy
 

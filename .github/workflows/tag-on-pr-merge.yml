@@ -1,0 +1,37 @@
+name: tag-on-pr-merge
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  tag-on-pr-merge:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Install semver-cli
+      run: cargo install semver-cli
+
+    - name: Calculate the tag value
+      id: bump_tag
+      run: echo "tag=$(semver-cli $(make version) --increment)"
+
+    - name: Push git tag
+      uses: actions-ecosystem/action-push-tag@v1
+      with:
+        tag: ${{ steps.bump_tag.outputs.tag }}
+        message: |
+          Auto tagged from PR: ${{ github.event.pull_request.title }}
+
+          ${{ github.event.pull_request.html_url }}
+

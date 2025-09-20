@@ -38,7 +38,7 @@ check-version-not-dirty:
 .PHONY: push
 push: check-version-not-dirty docker/.build
 	@echo Pushing $(CONTAINER_TAG)...
-	@podman push $(CONTAINER_TAG)
+	@$(CONTAINER_CMD) push $(CONTAINER_TAG)
 
 .PHONY: deploy
 deploy: check-version-not-dirty push
@@ -53,7 +53,7 @@ launch: docker/.build
 .PHONY: shutdown
 shutdown:
 	@echo Shutting down app...
-	@podman rm -f $(APP_NAME)
+	@$(CONTAINER_CMD) rm -f $(APP_NAME)
 
 .PHONY: integration-tests
 integration-tests: docker/$(APP_NAME).jar

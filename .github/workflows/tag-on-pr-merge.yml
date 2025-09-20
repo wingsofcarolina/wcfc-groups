@@ -18,16 +18,15 @@ jobs:
 
     - name: Checkout repository
       uses: actions/checkout@v5
-
-    - name: Fetch tags
-      run: git fetch --tags origin
+      with:
+        fetch-depth: 0
 
     - name: Install semver-cli
       run: cargo install semver-cli
 
     - name: Calculate the tag value
       id: bump_tag
-      run: echo "tag=$(semver-cli $(make version) --increment)"
+      run: echo "tag=$(semver-cli $(make version) --increment)" >> $GITHUB_OUTPUT
 
     - name: Push git tag
       run: |

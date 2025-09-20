@@ -45,5 +45,3 @@ jobs:
         repository: ${{ github.repository }}
         workflow: release.yml
         ref: main
-        inputs:
-          tag: ${{ steps.create_tag.outputs.tag_name }}

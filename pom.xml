@@ -19,6 +19,22 @@
     <dockerImage>${dockerRegistry}/${project.artifactId}:${project.version}
 		</dockerImage>
     <containerName>groups</containerName>
+    <!-- Default git properties (will be overridden by git-commit-id-plugin) -->
+    <git.commit.id>unknown</git.commit.id>
+    <git.tags>unknown</git.tags>
+    <git.branch>unknown</git.branch>
+    <git.dirty>unknown</git.dirty>
+    <git.build.time>unknown</git.build.time>
+    <git.build.host>unknown</git.build.host>
+    <git.build.version>unknown</git.build.version>
+    <git.commit.time>unknown</git.commit.time>
+    <git.remote.origin.url>unknown</git.remote.origin.url>
+    <git.commit.id.abbrev>unknown</git.commit.id.abbrev>
+    <git.commit.id.describe-short>unknown</git.commit.id.describe-short>
+    <git.commit.user.name>unknown</git.commit.user.name>
+    <git.commit.user.email>unknown</git.commit.user.email>
+    <git.build.user.name>unknown</git.build.user.name>
+    <git.build.user.email>unknown</git.build.user.email>
   </properties>
   <dependencies>
     <!-- https://mvnrepository.com/artifact/io.undertow/undertow-core -->
@@ -194,6 +210,31 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.github.git-commit-id</groupId>
+        <artifactId>git-commit-id-maven-plugin</artifactId>
+        <version>9.0.2</version>
+        <executions>
+          <execution>
+            <id>get-the-git-infos</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>
+            ${project.build.outputDirectory}/git.properties
+          </generateGitPropertiesFilename>
+          <gitDescribe>
+            <skip>false</skip>
+            <always>false</always>
+            <dirty>-dirty</dirty>
+          </gitDescribe>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>com.hubspot.maven.plugins</groupId>

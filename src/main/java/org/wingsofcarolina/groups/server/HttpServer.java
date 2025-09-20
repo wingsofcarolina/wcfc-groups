@@ -29,6 +29,7 @@ public class HttpServer {
       new BlockingHandler(new EagerFormParsingHandler(new PopulateHandler()))
     );
     handler.addHandler("POST", "/test", new BlockingHandler(new TestHandler()));
+    handler.addHandler("GET", "/api/version", new VersionHandler());
 
     Undertow server = Undertow
       .builder()

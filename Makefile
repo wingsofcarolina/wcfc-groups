@@ -28,10 +28,18 @@ docker/.build: $(APP_JAR)
 .PHONY: build
 build: docker/.build
 
+.PHONY: check-version-not-dirty
+check-version-not-dirty:
+	@if [[ "$(CONTAINER_TAG)" == *"dirty"* ]]; then echo Refusing to build/push dirty version; exit 1; fi
+
 .PHONY: push
-push: docker/.build
+push: check-version-not-dirty docker/.build
 	@echo Pushing $(CONTAINER_TAG)...
 	@podman push $(CONTAINER_TAG)
+
+.PHONY: deploy
+deploy: check-version-not-dirty push
+	@gcloud run deploy wcfc-groups --image $(CONTAINER_TAG)
 
 .PHONY: launch
 launch: docker/.build

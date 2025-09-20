@@ -15,4 +15,3 @@ target/
 /node_modules/
 dependency-reduced-pom.xml
 gha-creds-*
-#test

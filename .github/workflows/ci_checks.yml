@@ -46,7 +46,7 @@ jobs:
       run: make check-format
 
     - name: Run NPM checks
-      run: npm install --legacy-peer-deps && npm run check
+      run: npm ci --legacy-peer-deps && npm run check
       working-directory: ./client
 
     - name: Build the app

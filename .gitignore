@@ -12,6 +12,7 @@ data/
 target/
 /node_modules/
 dependency-reduced-pom.xml
+gha-creds-*
 
 # Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
 !/.mvn/wrapper/maven-wrapper.jar

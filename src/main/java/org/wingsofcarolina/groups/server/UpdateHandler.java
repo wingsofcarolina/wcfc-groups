@@ -97,13 +97,36 @@ public class UpdateHandler implements HttpHandler {
   }
 
   List<Member> clean(List<Member> members) {
+    int originalSize = members.size();
+    int removedCount = 0;
+
     Iterator<Member> removedIt = members.iterator();
     while (removedIt.hasNext()) {
       Member member = removedIt.next();
-      if (member.getChecked() == false) {
+      // Handle null values properly - if checked is null or false, remove the member
+      if (!Boolean.TRUE.equals(member.getChecked())) {
+        logger.debug(
+          "Removing unchecked member: {} (checked={})",
+          member.getName(),
+          member.getChecked()
+        );
         removedIt.remove();
+        removedCount++;
+      } else {
+        logger.debug(
+          "Keeping checked member: {} (checked={})",
+          member.getName(),
+          member.getChecked()
+        );
       }
     }
+
+    logger.info(
+      "Cleaned member list: {} -> {} (removed {} unchecked members)",
+      originalSize,
+      members.size(),
+      removedCount
+    );
     return members;
   }
 }

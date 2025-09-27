@@ -25,7 +25,9 @@ public class Member {
   @Transient
   Boolean checked;
 
-  public Member() {}
+  public Member() {
+    this.checked = false; // Initialize checked to false by default for JSON deserialization
+  }
 
   // Note, this is used ONLY for Groups.io auditing!
   public Member(Integer id, String name, String email) {
@@ -41,6 +43,7 @@ public class Member {
     this.name = fname + " " + lname;
     this.email = email;
     this.level = level;
+    this.checked = false; // Initialize checked to false by default
   }
 
   public Integer getId() {

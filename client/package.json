@@ -19,16 +19,16 @@
 		"@smui/icon-button": "^8.0.0-beta.3",
 		"@smui/textfield": "^8.0.0-beta.3",
 		"@sveltejs/adapter-auto": "^7.0.0",
-		"@sveltejs/kit": "^2.49.0",
+		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"eslint": "^9.39.1",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.13.0",
 		"globals": "^16.5.0",
-		"prettier": "^3.7.2",
+		"prettier": "^3.7.3",
 		"prettier-plugin-svelte": "^3.3.3",
-		"svelte": "^5.45.2",
-		"vite": "^7.2.4"
+		"svelte": "^5.45.3",
+		"vite": "^7.2.6"
 	},
 	"dependencies": {
 		"@beyonk/svelte-notifications": "^4.3.0",

@@ -13,7 +13,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^2.0.1",
+		"@eslint/compat": "^2.0.2",
 		"@eslint/js": "^9.39.2",
 		"@smui/button": "^8.0.0-beta.3",
 		"@smui/icon-button": "^8.0.0-beta.3",
@@ -27,7 +27,7 @@
 		"globals": "^17.2.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.4.1",
-		"svelte": "^5.49.0",
+		"svelte": "^5.49.1",
 		"vite": "^7.3.1"
 	},
 	"dependencies": {

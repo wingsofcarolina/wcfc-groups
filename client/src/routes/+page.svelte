@@ -3,18 +3,24 @@
 	import { goto } from '$app/navigation';
 	import Textfield from '@smui/textfield';
 	import Button from '@smui/button';
-	import IconButton from '@smui/icon-button';
 	import Members from '$lib/components/Members.svelte';
-	import { Icon, Label } from '@smui/common';
+	import { Label } from '@smui/common';
 	import { NotificationDisplay, notifier } from '@beyonk/svelte-notifications';
 
-	let valueTypeNumber = 0;
-	let valueTypeNumberStep = 0;
-	let valueTypeDate = '';
-	let files: FileList | null = null;
+	type Member = {
+		name: string;
+		email: string;
+		checked: boolean;
+	};
 
-	$: added = null;
-	$: removed = null;
+	type UploadResponse = {
+		added: Omit<Member, 'checked'>[];
+		removed: Omit<Member, 'checked'>[];
+	};
+
+	let files: FileList | null = null;
+	let added: Member[] | null = null;
+	let removed: Member[] | null = null;
 
 	onMount(async () => {});
 
@@ -27,10 +33,10 @@
 		uploadXlsFile(files[0]);
 	}
 
-	const uploadXlsFile = async (file) => {
+	const uploadXlsFile = async (file: File) => {
 		if (files == null) {
 			console.log('All values must be provided.');
-		} else if (file.type.localeCompare('application/vnd.ms-excel') == 0) {
+		} else if (file.type.localeCompare('application/vnd.ms-excel') === 0) {
 			const formData = new FormData();
 			formData.append('members', file);
 			const response = await fetch('/upload', {
@@ -40,17 +46,9 @@
 			if (response.ok) {
 				notifier.success('File uploaded successfully');
 				files = null;
-				const json = await response.json();
-				added = [];
-				removed = [];
-				json['added'].forEach((item, i) => {
-					item.checked = true;
-					added.push(item);
-				});
-				json['removed'].forEach((item, i) => {
-					item.checked = true;
-					removed.push(item);
-				});
+				const json: UploadResponse = await response.json();
+				added = json.added.map((item) => ({ ...item, checked: true }));
+				removed = json.removed.map((item) => ({ ...item, checked: true }));
 			} else {
 				notifier.warning('File failed to upload (not a MyFBO XLS??)');
 			}
@@ -66,6 +64,10 @@
 	};
 
 	const submit = async () => {
+		if (added == null || removed == null) {
+			return;
+		}
+
 		// added.forEach((item, i) => {
 		//   console.log('Added   : ' + item.checked + ' : ' + item.email);
 		// });
@@ -73,7 +75,7 @@
 		//   console.log('Removed : ' + item.checked + ' : ' + item.email);
 		// });
 
-		var json = JSON.stringify({
+		const json = JSON.stringify({
 			added: added,
 			removed: removed
 		});

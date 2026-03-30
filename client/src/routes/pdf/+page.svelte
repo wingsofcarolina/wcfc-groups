@@ -2,18 +2,22 @@
 	import { onMount } from 'svelte';
 	import { notifier } from '@beyonk/svelte-notifications';
 
-	let data = null;
-	let PdfViewer;
+	let data: ArrayBuffer | null = null;
+	let PdfViewer: typeof import('svelte-pdf').default | null = null;
 
-	onMount(async () => {
-		fetchFile('private/8d2e9806-154b-4461-bd14-078ab3e6fa6b.pdf');
-		const module = await import('svelte-pdf');
-		PdfViewer = module.default;
+	onMount(() => {
+		void fetchFile('private/8d2e9806-154b-4461-bd14-078ab3e6fa6b.pdf');
+		void loadPdfViewer();
 	});
 
-	const fetchFile = async (name) => {
-		var json = JSON.stringify({
-			name: name
+	const loadPdfViewer = async () => {
+		const module = await import('svelte-pdf');
+		PdfViewer = module.default;
+	};
+
+	const fetchFile = async (name: string) => {
+		const json = JSON.stringify({
+			name
 		});
 		const response = await fetch('https://groundschool.wingsofcarolina.org/api/fetch', {
 			method: 'post',
@@ -33,7 +37,7 @@
 </script>
 
 <div class="center margins">
-	{#if data}
+	{#if data && PdfViewer}
 		<svelte:component this={PdfViewer} {data} />
 	{/if}
 </div>

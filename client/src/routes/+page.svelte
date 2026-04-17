@@ -8,19 +8,29 @@
 	import { NotificationDisplay, notifier } from '@beyonk/svelte-notifications';
 
 	type Member = {
+		id: number;
 		name: string;
 		email: string;
+		level: number;
+		checked: boolean;
+	};
+
+	type EmailChange = {
+		oldMember: Omit<Member, 'checked'>;
+		newMember: Omit<Member, 'checked'>;
 		checked: boolean;
 	};
 
 	type UploadResponse = {
 		added: Omit<Member, 'checked'>[];
 		removed: Omit<Member, 'checked'>[];
+		changed: Omit<EmailChange, 'checked'>[];
 	};
 
 	let files: FileList | null = null;
 	let added: Member[] | null = null;
 	let removed: Member[] | null = null;
+	let changed: EmailChange[] | null = null;
 
 	onMount(async () => {});
 
@@ -49,6 +59,7 @@
 				const json: UploadResponse = await response.json();
 				added = json.added.map((item) => ({ ...item, checked: true }));
 				removed = json.removed.map((item) => ({ ...item, checked: true }));
+				changed = (json.changed ?? []).map((item) => ({ ...item, checked: true }));
 			} else {
 				notifier.warning('File failed to upload (not a MyFBO XLS??)');
 			}
@@ -60,11 +71,12 @@
 	const cancel = async () => {
 		added = null;
 		removed = null;
+		changed = null;
 		files = null;
 	};
 
 	const submit = async () => {
-		if (added == null || removed == null) {
+		if (added == null || removed == null || changed == null) {
 			return;
 		}
 
@@ -77,7 +89,8 @@
 
 		const json = JSON.stringify({
 			added: added,
-			removed: removed
+			removed: removed,
+			changed: changed
 		});
 
 		const response = await fetch('/update', {
@@ -105,7 +118,7 @@
 <div class="center margins">
 	<h3>WCFC Mailing List Update</h3>
 
-	{#if !added || !removed}
+	{#if !added || !removed || !changed}
 		<div class="prompt">Select MyFBO Members File</div>
 
 		<div class="hide-file-ui">
@@ -116,8 +129,17 @@
 		</div>
 	{:else}
 		<div class="response">
-			{#if added.length > 0 || removed.length > 0}
+			{#if added.length > 0 || removed.length > 0 || changed.length > 0}
 				<div class="prompt">Membership Changes</div>
+
+				{#if changed.length > 0}
+					<div class="warning">
+						NOTE: Manual intervention is required to update the email addresses on existing
+						groups.io accounts. Changed email addresses will NOT be updated in groups.io. Please
+						make a note of these address changes before proceeding and notify the groups.io
+						administrators.
+					</div>
+				{/if}
 
 				<div class="changes">
 					{#if added.length > 0}
@@ -126,6 +148,19 @@
 
 					{#if removed.length > 0}
 						<Members label="Removed Members" bind:value={removed} />
+					{/if}
+
+					{#if changed.length > 0}
+						<div class="members">
+							<div class="label">Changed E-mail Addresses</div>
+							{#each changed as emailChange}
+								<div class="member">
+									<input type="checkbox" bind:checked={emailChange.checked} />
+									{emailChange.newMember.name}: {emailChange.oldMember.email} -&gt;
+									{emailChange.newMember.email}
+								</div>
+							{/each}
+						</div>
 					{/if}
 				</div>
 
@@ -159,6 +194,30 @@
 	.changes {
 		margin-top: 20px;
 		margin-bottom: 25px;
+	}
+	.members {
+		width: fit-content;
+	}
+	.member {
+		margin: 5px;
+		font-size: 14px;
+	}
+	.label {
+		font-size: 16px;
+		margin-top: 10px;
+		border-bottom: solid;
+		display: inline-block;
+	}
+	.warning {
+		margin-top: 15px;
+		margin-bottom: 15px;
+		max-width: 760px;
+		border-left: 4px solid #b00020;
+		padding: 10px;
+		background: #fff7f7;
+		color: #5f0011;
+		font-size: 14px;
+		line-height: 1.4;
 	}
 	.prompt {
 		font-size: 20px;

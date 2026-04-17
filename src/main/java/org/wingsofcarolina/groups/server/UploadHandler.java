@@ -12,6 +12,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.MemberListXLS;
+import org.wingsofcarolina.groups.domain.EmailChange;
 import org.wingsofcarolina.groups.domain.Member;
 
 public class UploadHandler implements HttpHandler {
@@ -24,6 +25,7 @@ public class UploadHandler implements HttpHandler {
   public void handleRequest(HttpServerExchange hse) throws Exception {
     ArrayList<Member> added = new ArrayList<Member>();
     ArrayList<Member> removed = new ArrayList<Member>();
+    ArrayList<EmailChange> changed = new ArrayList<EmailChange>();
     Iterator<Map.Entry<Integer, Member>> iterator;
 
     String uri = hse.getRequestURI();
@@ -54,10 +56,19 @@ public class UploadHandler implements HttpHandler {
             while (iterator.hasNext()) {
               Map.Entry<Integer, Member> entry = iterator.next();
               Member member = entry.getValue();
-              if (!savedList.hasMember(member)) {
+              Member savedMember = savedList.members().get(member.getId());
+              if (savedMember == null) {
                 logger.info(member.output());
                 added.add(member);
                 found = true;
+              } else if (emailChanged(savedMember, member)) {
+                logger.info(
+                  "{} email changed from {} to {}",
+                  member.getName(),
+                  savedMember.getEmail(),
+                  member.getEmail()
+                );
+                changed.add(new EmailChange(savedMember, member));
               }
             }
             if (!found) logger.info("No new members added.");
@@ -86,6 +97,7 @@ public class UploadHandler implements HttpHandler {
           //				    response.put("file", basename);
           response.put("removed", removed);
           response.put("added", added);
+          response.put("changed", changed);
           String json = mapper.writeValueAsString(response);
 
           hse.getResponseSender().send(json);
@@ -94,5 +106,17 @@ public class UploadHandler implements HttpHandler {
       }
     }
     hse.getResponseSender().send("Upload attempt failed");
+  }
+
+  private boolean emailChanged(Member savedMember, Member updatedMember) {
+    return !normalizeEmail(savedMember.getEmail())
+      .equals(normalizeEmail(updatedMember.getEmail()));
+  }
+
+  private String normalizeEmail(String email) {
+    if (email == null) {
+      return "";
+    }
+    return email.trim().toLowerCase();
   }
 }

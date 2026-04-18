@@ -7,10 +7,13 @@ Includes WireMock setup and complete user workflow testing
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import requests
 from playwright.sync_api import sync_playwright, expect
+
+WARNING_PATTERN = re.compile(r"NOTE:.*groups\.io", re.DOTALL)
 
 def setup_wiremock_stubs():
     """Setup WireMock stubs for Groups.io and WCFC-Manuals APIs"""
@@ -174,6 +177,17 @@ def get_api_requests():
     else:
         raise Exception(f"Failed to get requests from WireMock: {response.text}")
 
+def reset_api_requests():
+    """Clear WireMock request history while keeping configured stubs"""
+    wiremock_url = "http://localhost:8080"
+    response = requests.delete(f"{wiremock_url}/__admin/requests")
+    if response.status_code not in (200, 204):
+        raise Exception(f"Failed to clear WireMock requests: {response.text}")
+
+def reset_mongodb_data():
+    """Reset MongoDB to the common seed data for each scenario"""
+    subprocess.run(["python3", "/app/test-scripts/setup-test-data.py"], check=True)
+
 def wait_for_page_ready(page, max_attempts=5):
     """Wait for page to be fully loaded and JavaScript ready"""
     print("Waiting for page to be ready...")
@@ -203,6 +217,76 @@ def wait_for_page_ready(page, max_attempts=5):
     page.reload(wait_until="load")
     page.wait_for_timeout(5000)
     return True
+
+def verify_api_call_counts(expected_counts):
+    """Verify that WireMock saw the expected API request counts"""
+    time.sleep(3)
+    api_requests = get_api_requests()
+
+    actual_counts = {
+        'groupsio_add': len(api_requests['groupsio_add']),
+        'groupsio_remove': len(api_requests['groupsio_remove']),
+        'manuals_add': len(api_requests['manuals_add']),
+        'manuals_remove': len(api_requests['manuals_remove'])
+    }
+
+    print(f"API call summary:")
+    print(f"  Groups.io add calls: {actual_counts['groupsio_add']}")
+    print(f"  Groups.io remove calls: {actual_counts['groupsio_remove']}")
+    print(f"  WCFC-Manuals add calls: {actual_counts['manuals_add']}")
+    print(f"  WCFC-Manuals remove calls: {actual_counts['manuals_remove']}")
+
+    for key, expected in expected_counts.items():
+        actual = actual_counts[key]
+        if actual != expected:
+            raise Exception(f"Expected exactly {expected} {key} calls, found {actual}")
+
+def run_browser_scenario(page, name, test_file_path, expected_warning, expected_checkboxes, expected_counts):
+    """Run one browser upload/submit scenario"""
+    print(f"Running scenario: {name}")
+    reset_mongodb_data()
+    reset_api_requests()
+
+    print("Navigating to /...")
+    response = page.goto("http://localhost:9301/", wait_until="load", timeout=15000)
+    print(f"Navigation response: {response.status}")
+    wait_for_page_ready(page)
+
+    print(f"Uploading XLS file: {test_file_path}")
+    file_input = page.locator('input[type="file"]')
+    expect(file_input).to_be_visible(timeout=10000)
+    file_input.set_input_files(test_file_path)
+
+    print("Waiting for results page...")
+    wait_for_page_ready(page)
+
+    warning = page.get_by_text(WARNING_PATTERN)
+    if expected_warning:
+        expect(warning).to_be_visible(timeout=10000)
+        print("✅ Expected changed-email warning is visible")
+    else:
+        expect(warning).to_have_count(0)
+        print("✅ Changed-email warning is not visible")
+
+    checkboxes = page.locator('input[type="checkbox"]')
+    checkbox_count = checkboxes.count()
+    print(f"Found {checkbox_count} checkboxes")
+    if checkbox_count != expected_checkboxes:
+        raise Exception(f"Expected {expected_checkboxes} checkboxes, but found {checkbox_count}")
+
+    for index in range(expected_checkboxes):
+        checkbox = checkboxes.nth(index)
+        expect(checkbox).to_be_visible(timeout=10000)
+        checkbox.check()
+
+    submit_button = page.locator('button:has-text("Submit"), button:has-text("Apply"), input[type="submit"]').first
+    expect(submit_button).to_be_visible(timeout=5000)
+    submit_button.click()
+    print("✅ Submit button clicked")
+    wait_for_page_ready(page)
+
+    verify_api_call_counts(expected_counts)
+    print(f"✅ Scenario completed successfully: {name}")
 
 def run_update_test():
     """Run the complete update flow test"""
@@ -241,102 +325,34 @@ def run_update_test():
         page.on("pageerror", lambda error: print(f"Page error: {error}"))
         
         try:
-            # Step 1: Navigate to main page
-            print("Step 1: Navigating to /...")
-            
-            response = page.goto("http://localhost:9301/", wait_until="load", timeout=15000)
-            print(f"Navigation response: {response.status}")
-           
-            # Wait for page to be ready
-            wait_for_page_ready(page)
+            run_browser_scenario(
+                page,
+                "add/remove changes do not show changed-email warning",
+                "/app/test-data/myfbo-report.xls",
+                expected_warning=False,
+                expected_checkboxes=2,
+                expected_counts={
+                    'groupsio_add': 1,
+                    'groupsio_remove': 1,
+                    'manuals_add': 1,
+                    'manuals_remove': 1
+                }
+            )
 
-            # Step 2: Upload the sample xls file from test-data
-            print("Step 2: Uploading XLS file...")
-            
-            # Look for file upload input
-            file_input = page.locator('input[type="file"]')
-            expect(file_input).to_be_visible(timeout=10000)
-            
-            # Upload the test file
-            test_file_path = "/app/test-data/myfbo-report.xls"
-            file_input.set_input_files(test_file_path)
-            print(f"✅ File uploaded: {test_file_path}")
+            run_browser_scenario(
+                page,
+                "changed email shows warning and skips groups.io",
+                "/app/test-data/myfbo-report-email-change.xls",
+                expected_warning=True,
+                expected_checkboxes=1,
+                expected_counts={
+                    'groupsio_add': 0,
+                    'groupsio_remove': 0,
+                    'manuals_add': 1,
+                    'manuals_remove': 1
+                }
+            )
 
-            # Step 3: View the checkbox page and see that there is one addition and one deletion
-            print("Step 3: Waiting for results page with checkboxes...")
-            
-            # Wait for the page to process and show results
-            wait_for_page_ready(page)
-            
-            # Look for checkboxes - should be one for additions and one for removals
-            add_checkbox = page.locator('input[type="checkbox"]').filter(has_text=re.compile(r'add|addition', re.IGNORECASE)).first
-            remove_checkbox = page.locator('input[type="checkbox"]').filter(has_text=re.compile(r'remove|removal|delete', re.IGNORECASE)).first
-            
-            # Alternative: look for any checkboxes if the above doesn't work
-            if not add_checkbox.is_visible() or not remove_checkbox.is_visible():
-                checkboxes = page.locator('input[type="checkbox"]')
-                checkbox_count = checkboxes.count()
-                print(f"Found {checkbox_count} checkboxes")
-                
-                if checkbox_count == 2:
-                    add_checkbox = checkboxes.nth(0)
-                    remove_checkbox = checkboxes.nth(1)
-                else:
-                    raise Exception(f"Expected 2 checkboxes (add and remove), but found {checkbox_count}")
-            
-            expect(add_checkbox).to_be_visible(timeout=10000)
-            expect(remove_checkbox).to_be_visible(timeout=10000)
-            print("✅ Found add and remove checkboxes")
-
-            # Step 4: Check both boxes and submit
-            print("Step 4: Checking both boxes and submitting...")
-            
-            add_checkbox.check()
-            remove_checkbox.check()
-            print("✅ Both checkboxes checked")
-            
-            # Look for submit button
-            submit_button = page.locator('button:has-text("Submit"), button:has-text("Apply"), input[type="submit"]').first
-            expect(submit_button).to_be_visible(timeout=5000)
-            submit_button.click()
-            print("✅ Submit button clicked")
-            
-            # Wait for processing to complete
-            wait_for_page_ready(page)
-
-            # Step 5: Verify that WireMock has received updates for both groups.io and wcfc-manuals
-            print("Step 5: Verifying API calls to WireMock...")
-            
-            # Wait a bit for all API calls to complete
-            time.sleep(3)
-            
-            # Get all API requests from WireMock
-            api_requests = get_api_requests()
-            
-            # Verify Groups.io API calls
-            groupsio_add_calls = len(api_requests['groupsio_add'])
-            groupsio_remove_calls = len(api_requests['groupsio_remove'])
-            
-            # Verify WCFC-Manuals API calls  
-            manuals_add_calls = len(api_requests['manuals_add'])
-            manuals_remove_calls = len(api_requests['manuals_remove'])
-            
-            print(f"API call summary:")
-            print(f"  Groups.io add calls: {groupsio_add_calls}")
-            print(f"  Groups.io remove calls: {groupsio_remove_calls}")
-            print(f"  WCFC-Manuals add calls: {manuals_add_calls}")
-            print(f"  WCFC-Manuals remove calls: {manuals_remove_calls}")
-
-            # Verify we have the expected API calls
-            if groupsio_add_calls != 1:
-                raise Exception("Expected exactly 1 groups.io add call")
-            if groupsio_remove_calls != 1:
-                raise Exception("Expected exactly 1 groups.io remove call")
-            if manuals_add_calls != 1:
-                raise Exception("Expected exactly 1 wcfc-manuals add call")
-            if manuals_remove_calls != 1:
-                raise Exception("Expected exactly 1 wcfc-manuals remove call")
-            
             print("✅ Update flow completed successfully!")
             return True
             

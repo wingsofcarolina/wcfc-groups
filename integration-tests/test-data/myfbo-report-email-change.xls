@@ -1,0 +1,55 @@
+
+<html>
+
+<head>
+<title>Excel Reporting</title>
+</head>
+
+<body>
+<table border="1" style="font-size: 10pt">
+  <tr>
+
+    <th bgcolor="#ADCECF">Member Number</th>
+
+    <th bgcolor="#ADCECF">First Name</th>
+
+    <th bgcolor="#ADCECF">Last Name</th>
+
+    <th bgcolor="#ADCECF">E-mail 1</th>
+
+    <th bgcolor="#ADCECF">Level</th>
+
+  </tr>
+
+    <tr>
+
+        <td>1001</td>
+
+        <td>Test</td>
+
+        <td>User</td>
+
+        <td>test.changed@example.com</td>
+
+        <td>3</td>
+
+    </tr>
+
+    <tr>
+
+        <td>1004</td>
+
+        <td>Bob</td>
+
+        <td>Smith</td>
+
+        <td>bob.smith@example.com</td>
+
+        <td>3</td>
+
+    </tr>
+
+</table>
+
+</body>
+</html>

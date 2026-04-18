@@ -25,6 +25,7 @@ def setup_mongodb_data():
     # Clear existing data
     db.Members.drop()
     db.VerificationCode.drop()
+    db.counters.drop()
     
     # Create test member data
     test_members = [

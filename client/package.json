@@ -20,7 +20,7 @@
 		"@smui/textfield": "^8.0.0-beta.3",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.59.1",
-		"@sveltejs/vite-plugin-svelte": "^7.1.1",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"eslint": "^10.3.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.17.1",
@@ -28,7 +28,7 @@
 		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^3.5.1",
 		"svelte": "^5.55.5",
-		"vite": "^8.0.10"
+		"vite": "^8.0.11"
 	},
 	"dependencies": {
 		"@beyonk/svelte-notifications": "^4.3.0",

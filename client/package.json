@@ -13,7 +13,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^2.0.5",
+		"@eslint/compat": "^2.1.0",
 		"@eslint/js": "^10.0.1",
 		"@smui/button": "^8.0.0-beta.3",
 		"@smui/icon-button": "^8.0.0-beta.3",

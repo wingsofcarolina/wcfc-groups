@@ -9,9 +9,23 @@
 
 	type Member = {
 		id: number;
+		firstName?: string;
+		lastName?: string;
 		name: string;
 		email: string;
 		level: number;
+		checked: boolean;
+	};
+
+	type DepositsMember = {
+		firstName: string;
+		lastName: string;
+		email: string;
+		memberNumber: string;
+		fullNameNormalized: string;
+		emailNormalized: string;
+		numberNormalized: string;
+		inactive: boolean;
 		checked: boolean;
 	};
 
@@ -21,16 +35,27 @@
 		checked: boolean;
 	};
 
+	type DepositsChange = {
+		oldMember: Omit<DepositsMember, 'checked'>;
+		newMember: Omit<DepositsMember, 'checked'>;
+	};
+
 	type UploadResponse = {
 		added: Omit<Member, 'checked'>[];
 		removed: Omit<Member, 'checked'>[];
 		changed: Omit<EmailChange, 'checked'>[];
+		depositsAdded: Omit<DepositsMember, 'checked'>[];
+		depositsRemoved: Omit<DepositsMember, 'checked'>[];
+		depositsChanged: DepositsChange[];
 	};
 
 	let files: FileList | null = null;
 	let added: Member[] | null = null;
 	let removed: Member[] | null = null;
 	let changed: EmailChange[] | null = null;
+	let depositsAdded: DepositsMember[] | null = null;
+	let depositsRemoved: DepositsMember[] | null = null;
+	let depositsChanged: DepositsChange[] | null = null;
 
 	onMount(async () => {});
 
@@ -40,13 +65,13 @@
 
 	// Note: the change and input events fire before the `files` prop is updated.
 	$: if (files != null && files.length) {
-		uploadXlsFile(files[0]);
+		uploadMembersFile(files[0]);
 	}
 
-	const uploadXlsFile = async (file: File) => {
+	const uploadMembersFile = async (file: File) => {
 		if (files == null) {
 			console.log('All values must be provided.');
-		} else if (file.type.localeCompare('application/vnd.ms-excel') === 0) {
+		} else if (isMembersFile(file)) {
 			const formData = new FormData();
 			formData.append('members', file);
 			const response = await fetch('/upload', {
@@ -60,23 +85,50 @@
 				added = json.added.map((item) => ({ ...item, checked: true }));
 				removed = json.removed.map((item) => ({ ...item, checked: true }));
 				changed = (json.changed ?? []).map((item) => ({ ...item, checked: true }));
+				depositsAdded = (json.depositsAdded ?? []).map((item) => ({ ...item, checked: true }));
+				depositsRemoved = (json.depositsRemoved ?? []).map((item) => ({
+					...item,
+					checked: true
+				}));
+				depositsChanged = json.depositsChanged ?? [];
 			} else {
-				notifier.warning('File failed to upload (not a MyFBO XLS??)');
+				notifier.warning('File failed to upload (not a Flight Circle CSV?)');
 			}
 		} else {
-			notifier.danger('File must have an XLS extension!');
+			notifier.danger('File must have a CSV extension!');
 		}
+	};
+
+	const isMembersFile = (file: File) => {
+		const name = file.name.toLowerCase();
+		return (
+			name.endsWith('.csv') ||
+			name.endsWith('.xls') ||
+			file.type === 'text/csv' ||
+			file.type === 'application/csv' ||
+			file.type === 'application/vnd.ms-excel'
+		);
 	};
 
 	const cancel = async () => {
 		added = null;
 		removed = null;
 		changed = null;
+		depositsAdded = null;
+		depositsRemoved = null;
+		depositsChanged = null;
 		files = null;
 	};
 
 	const submit = async () => {
-		if (added == null || removed == null || changed == null) {
+		if (
+			added == null ||
+			removed == null ||
+			changed == null ||
+			depositsAdded == null ||
+			depositsRemoved == null ||
+			depositsChanged == null
+		) {
 			return;
 		}
 
@@ -90,7 +142,10 @@
 		const json = JSON.stringify({
 			added: added,
 			removed: removed,
-			changed: changed
+			changed: changed,
+			depositsAdded: depositsAdded,
+			depositsRemoved: depositsRemoved,
+			depositsChanged: depositsChanged
 		});
 
 		const response = await fetch('/update', {
@@ -111,6 +166,14 @@
 			cancel();
 		}
 	};
+
+	const depositsName = (member: Pick<DepositsMember, 'firstName' | 'lastName'>) =>
+		`${member.firstName} ${member.lastName}`.trim();
+
+	const depositsSummary = (
+		member: Pick<DepositsMember, 'firstName' | 'lastName' | 'email' | 'memberNumber' | 'inactive'>
+	) =>
+		`${depositsName(member)} <${member.email}> #${member.memberNumber}${member.inactive ? ' inactive' : ' active'}`;
 </script>
 
 <NotificationDisplay />
@@ -118,18 +181,23 @@
 <div class="center margins">
 	<h3>WCFC Mailing List Update</h3>
 
-	{#if !added || !removed || !changed}
-		<div class="prompt">Select MyFBO Members File</div>
+	{#if !added || !removed || !changed || !depositsAdded || !depositsRemoved || !depositsChanged}
+		<div class="prompt">Select Flight Circle Members File</div>
 
 		<div class="hide-file-ui">
 			<!--
         Note: the change and input events fire before the `files` prop is updated.
       -->
-			<Textfield bind:files label="File" type="file" input$accept="application/vnd.ms-excel" />
+			<Textfield
+				bind:files
+				label="File"
+				type="file"
+				input$accept=".csv,text/csv,application/vnd.ms-excel"
+			/>
 		</div>
 	{:else}
 		<div class="response">
-			{#if added.length > 0 || removed.length > 0 || changed.length > 0}
+			{#if added.length > 0 || removed.length > 0 || changed.length > 0 || depositsAdded.length > 0 || depositsRemoved.length > 0 || depositsChanged.length > 0}
 				<div class="prompt">Membership Changes</div>
 
 				{#if changed.length > 0}
@@ -138,6 +206,14 @@
 						groups.io accounts. Changed email addresses will NOT be updated in groups.io. Please
 						make a note of these address changes before proceeding and notify the groups.io
 						administrators.
+					</div>
+				{/if}
+
+				{#if depositsChanged.length > 0}
+					<div class="warning">
+						NOTE: Manual intervention is required to update changed member records in wcfc-deposits.
+						Changed deposits records will NOT be updated. Please review these records before
+						proceeding.
 					</div>
 				{/if}
 
@@ -158,6 +234,42 @@
 									<input type="checkbox" bind:checked={emailChange.checked} />
 									{emailChange.newMember.name}: {emailChange.oldMember.email} -&gt;
 									{emailChange.newMember.email}
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					{#if depositsAdded.length > 0}
+						<div class="members">
+							<div class="label">Deposits Members to Add</div>
+							{#each depositsAdded as member}
+								<div class="member">
+									<input type="checkbox" bind:checked={member.checked} />
+									{depositsName(member)} &lt;{member.email}&gt; #{member.memberNumber}
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					{#if depositsRemoved.length > 0}
+						<div class="members">
+							<div class="label">Deposits Members to Mark Inactive</div>
+							{#each depositsRemoved as member}
+								<div class="member">
+									<input type="checkbox" bind:checked={member.checked} />
+									{depositsName(member)} &lt;{member.email}&gt; #{member.memberNumber}
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					{#if depositsChanged.length > 0}
+						<div class="members">
+							<div class="label">Changed Deposits Records</div>
+							{#each depositsChanged as depositsChange}
+								<div class="member">
+									{depositsSummary(depositsChange.oldMember)} -&gt;
+									{depositsSummary(depositsChange.newMember)}
 								</div>
 							{/each}
 						</div>

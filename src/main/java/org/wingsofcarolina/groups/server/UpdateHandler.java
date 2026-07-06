@@ -11,8 +11,11 @@ import java.util.Iterator;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wingsofcarolina.groups.domain.DepositsChange;
+import org.wingsofcarolina.groups.domain.DepositsMember;
 import org.wingsofcarolina.groups.domain.EmailChange;
 import org.wingsofcarolina.groups.domain.Member;
+import org.wingsofcarolina.groups.http.DepositsService;
 import org.wingsofcarolina.groups.http.GroupsIoService;
 import org.wingsofcarolina.groups.http.ManualsService;
 
@@ -43,9 +46,21 @@ public class UpdateHandler implements HttpHandler {
     List<Member> added = clean(result.getAdded());
     List<Member> removed = clean(result.getRemoved());
     List<EmailChange> changed = cleanChanges(result.getChanged());
+    List<DepositsMember> depositsAdded = cleanDeposits(result.getDepositsAdded());
+    List<DepositsMember> depositsRemoved = cleanDeposits(result.getDepositsRemoved());
+    List<DepositsChange> depositsChanged = cleanDepositsChanges(
+      result.getDepositsChanged()
+    );
     logger.info("Added   --> " + added.size() + " : " + added);
     logger.info("Removed --> " + removed.size() + " : " + removed);
     logger.info("Changed --> " + changed.size() + " : " + changed);
+    logger.info("Deposits added   --> " + depositsAdded.size() + " : " + depositsAdded);
+    logger.info(
+      "Deposits removed --> " + depositsRemoved.size() + " : " + depositsRemoved
+    );
+    logger.info(
+      "Deposits changed --> " + depositsChanged.size() + " : " + depositsChanged
+    );
 
     // Create service to access the Manuals website for database updates
     ManualsService mio = new ManualsService().initialize();
@@ -100,6 +115,17 @@ public class UpdateHandler implements HttpHandler {
         mio.addMember(newMember);
         updateLocalMember(newMember);
       }
+    }
+    if (depositsAdded.size() > 0 || depositsRemoved.size() > 0) {
+      try (DepositsService depositsService = new DepositsService().initialize()) {
+        depositsService.addMultipleMembers(depositsAdded);
+        depositsService.removeMultipleMembers(depositsRemoved);
+      }
+    }
+    if (depositsChanged.size() > 0) {
+      logger.info(
+        "Deposits changed members require manual intervention; no deposits updates applied."
+      );
     }
 
     hse.setStatusCode(StatusCodes.OK);
@@ -157,6 +183,28 @@ public class UpdateHandler implements HttpHandler {
       if (!Boolean.TRUE.equals(emailChange.getChecked())) {
         it.remove();
       }
+    }
+    return changes;
+  }
+
+  List<DepositsMember> cleanDeposits(List<DepositsMember> members) {
+    if (members == null) {
+      return List.of();
+    }
+
+    Iterator<DepositsMember> it = members.iterator();
+    while (it.hasNext()) {
+      DepositsMember member = it.next();
+      if (!Boolean.TRUE.equals(member.getChecked())) {
+        it.remove();
+      }
+    }
+    return members;
+  }
+
+  List<DepositsChange> cleanDepositsChanges(List<DepositsChange> changes) {
+    if (changes == null) {
+      return List.of();
     }
     return changes;
   }

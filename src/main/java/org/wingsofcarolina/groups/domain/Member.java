@@ -18,6 +18,8 @@ public class Member {
   private ObjectId dbid;
 
   Integer id;
+  String firstName;
+  String lastName;
   String name;
   String email;
   Integer level;
@@ -33,6 +35,7 @@ public class Member {
   public Member(Integer id, String name, String email) {
     this.id = id;
     this.name = name;
+    setNamePartsFromName(name);
     this.email = email;
     this.level = -1;
     this.checked = false;
@@ -40,6 +43,8 @@ public class Member {
 
   public Member(Integer id, String fname, String lname, String email, Integer level) {
     this.id = id;
+    this.firstName = fname;
+    this.lastName = lname;
     this.name = fname + " " + lname;
     this.email = email;
     this.level = level;
@@ -68,6 +73,23 @@ public class Member {
 
   public void setName(String name) {
     this.name = name;
+    setNamePartsFromName(name);
+  }
+
+  public String getFirstName() {
+    return firstName;
+  }
+
+  public void setFirstName(String firstName) {
+    this.firstName = firstName;
+  }
+
+  public String getLastName() {
+    return lastName;
+  }
+
+  public void setLastName(String lastName) {
+    this.lastName = lastName;
   }
 
   public String getEmail() {
@@ -137,5 +159,24 @@ public class Member {
 
   public void delete() {
     dao.delete(this);
+  }
+
+  private void setNamePartsFromName(String name) {
+    if (name == null) {
+      firstName = "";
+      lastName = "";
+      return;
+    }
+
+    String trimmed = name.trim();
+    int splitAt = trimmed.indexOf(' ');
+    if (splitAt < 0) {
+      firstName = trimmed;
+      lastName = "";
+      return;
+    }
+
+    firstName = trimmed.substring(0, splitAt).trim();
+    lastName = trimmed.substring(splitAt + 1).trim();
   }
 }

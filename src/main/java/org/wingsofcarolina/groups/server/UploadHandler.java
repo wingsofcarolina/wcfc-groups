@@ -11,9 +11,13 @@ import java.io.InputStream;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wingsofcarolina.groups.MemberListCSV;
 import org.wingsofcarolina.groups.MemberListXLS;
+import org.wingsofcarolina.groups.MemberReader;
 import org.wingsofcarolina.groups.domain.EmailChange;
 import org.wingsofcarolina.groups.domain.Member;
+import org.wingsofcarolina.groups.http.DepositsService;
+import org.wingsofcarolina.groups.http.DepositsService.DepositsDiff;
 
 public class UploadHandler implements HttpHandler {
 
@@ -26,6 +30,7 @@ public class UploadHandler implements HttpHandler {
     ArrayList<Member> added = new ArrayList<Member>();
     ArrayList<Member> removed = new ArrayList<Member>();
     ArrayList<EmailChange> changed = new ArrayList<EmailChange>();
+    DepositsDiff depositsDiff = new DepositsDiff();
     Iterator<Map.Entry<Integer, Member>> iterator;
 
     String uri = hse.getRequestURI();
@@ -36,11 +41,12 @@ public class UploadHandler implements HttpHandler {
     if (attachment != null) {
       Deque<FormValue> members = attachment.get("members");
       if (members != null) {
-        FileItem first = members.getFirst().getFileItem();
+        FormValue upload = members.getFirst();
+        FileItem first = upload.getFileItem();
         if (first != null) {
           InputStream is = first.getInputStream();
           try {
-            MemberListXLS updateList = new MemberListXLS(is);
+            MemberReader updateList = readMemberList(is, upload.getFileName());
             MemberListXLS savedList = new MemberListXLS(Member.getAll());
 
             // First, remove all waitlist and cruft entries
@@ -88,6 +94,10 @@ public class UploadHandler implements HttpHandler {
               }
             }
             if (!found) logger.info("No members removed.");
+
+            try (DepositsService depositsService = new DepositsService().initialize()) {
+              depositsDiff = depositsService.diff(updateList);
+            }
           } catch (Exception ex) {
             logger.info(ex.getMessage());
             ex.printStackTrace();
@@ -98,6 +108,9 @@ public class UploadHandler implements HttpHandler {
           response.put("removed", removed);
           response.put("added", added);
           response.put("changed", changed);
+          response.put("depositsRemoved", depositsDiff.getRemoved());
+          response.put("depositsAdded", depositsDiff.getAdded());
+          response.put("depositsChanged", depositsDiff.getChanged());
           String json = mapper.writeValueAsString(response);
 
           hse.getResponseSender().send(json);
@@ -111,6 +124,13 @@ public class UploadHandler implements HttpHandler {
   private boolean emailChanged(Member savedMember, Member updatedMember) {
     return !normalizeEmail(savedMember.getEmail())
       .equals(normalizeEmail(updatedMember.getEmail()));
+  }
+
+  private MemberReader readMemberList(InputStream is, String fileName) throws Exception {
+    if (fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+      return new MemberListCSV(is);
+    }
+    return new MemberListXLS(is);
   }
 
   private String normalizeEmail(String email) {

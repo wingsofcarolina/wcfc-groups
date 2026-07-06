@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,17 +24,34 @@ public abstract class MemberReader {
     List<String[]> list;
 
     list = readAllLines(is);
-    Iterator<String[]> it = list.iterator();
-    while (it.hasNext()) {
-      String[] row = it.next();
-      Integer id = Integer.parseInt(row[0]);
-      String fname = row[1];
-      String lname = row[2];
-      String email = row[3];
-      Integer level = Integer.parseInt(row[4]);
-      Member member = new Member(id, fname, lname, email, level);
+    if (list.isEmpty()) {
+      return;
+    }
 
-      addMember(member);
+    if (isFlightCircleHeader(list.getFirst())) {
+      Map<String, Integer> header = headerIndex(list.getFirst());
+      for (int i = 1; i < list.size(); i++) {
+        Member member = readFlightCircleMember(header, list.get(i));
+        if (member != null) {
+          addMember(member);
+        }
+      }
+    } else {
+      Iterator<String[]> it = list.iterator();
+      while (it.hasNext()) {
+        String[] row = it.next();
+        if (row.length < 5 || isBlank(row[0])) {
+          continue;
+        }
+        Integer id = Integer.parseInt(row[0].trim());
+        String fname = row[1];
+        String lname = row[2];
+        String email = row[3];
+        Integer level = Integer.parseInt(row[4].trim());
+        Member member = new Member(id, fname, lname, email, level);
+
+        addMember(member);
+      }
     }
   }
 
@@ -46,6 +64,116 @@ public abstract class MemberReader {
   }
 
   public abstract List<String[]> readAllLines(InputStream is) throws Exception;
+
+  private boolean isFlightCircleHeader(String[] row) {
+    Map<String, Integer> header = headerIndex(row);
+    return (
+      header.containsKey("customerid") &&
+      header.containsKey("first name") &&
+      header.containsKey("last name") &&
+      header.containsKey("email") &&
+      header.containsKey("groups") &&
+      header.containsKey("member number")
+    );
+  }
+
+  private Map<String, Integer> headerIndex(String[] row) {
+    Map<String, Integer> header = new HashMap<String, Integer>();
+    for (int i = 0; i < row.length; i++) {
+      header.put(normalizeHeader(row[i]), i);
+    }
+    return header;
+  }
+
+  private Member readFlightCircleMember(Map<String, Integer> header, String[] row) {
+    String idText = value(header, row, "member number");
+    if (isBlank(idText)) {
+      logger.info(
+        "Skipping Flight Circle member without a Member Number: {}",
+        value(header, row, "email")
+      );
+      return null;
+    }
+
+    String email = value(header, row, "email");
+    if (isBlank(email)) {
+      logger.info("Skipping Flight Circle member {} without an email address", idText);
+      return null;
+    }
+
+    Integer id = Integer.parseInt(idText.trim());
+    String fname = value(header, row, "first name");
+    String lname = value(header, row, "last name");
+    Integer level = flightCircleLevel(
+      value(header, row, "groups"),
+      value(header, row, "status")
+    );
+    return new Member(id, fname, lname, email, level);
+  }
+
+  private String value(Map<String, Integer> header, String[] row, String column) {
+    Integer index = header.get(normalizeHeader(column));
+    if (index == null || index >= row.length) {
+      return "";
+    }
+    return row[index].trim();
+  }
+
+  private String normalizeHeader(String header) {
+    return header.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private Integer flightCircleLevel(String groups, String status) {
+    if (!isBlank(status) && !status.equalsIgnoreCase("Active")) {
+      return 7;
+    }
+
+    String normalizedGroups = groups.toLowerCase(Locale.ROOT);
+    if (normalizedGroups.contains("full member")) {
+      return 0;
+    }
+    if (normalizedGroups.contains("non-flying")) {
+      return 1;
+    }
+    if (normalizedGroups.contains("waiting")) {
+      return 2;
+    }
+    if (normalizedGroups.contains("key")) {
+      return 3;
+    }
+    if (
+      normalizedGroups.contains("maintenance") ||
+      normalizedGroups.contains("instructor") ||
+      normalizedGroups.contains("staff")
+    ) {
+      return 4;
+    }
+    if (normalizedGroups.contains("courtesy")) {
+      return 5;
+    }
+    if (normalizedGroups.contains("resign")) {
+      return 6;
+    }
+    if (normalizedGroups.contains("terminat")) {
+      return 7;
+    }
+    if (normalizedGroups.contains("deployed")) {
+      return 8;
+    }
+    if (normalizedGroups.contains("associate")) {
+      return 9;
+    }
+
+    logger.info(
+      "Treating unrecognized Flight Circle groups '{}' as waiting list",
+      groups
+    );
+    return 2;
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.trim().isEmpty();
+  }
 
   public Map<Integer, Member> members() {
     return memberList;

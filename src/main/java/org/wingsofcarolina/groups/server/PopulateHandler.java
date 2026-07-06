@@ -11,10 +11,13 @@ import io.undertow.util.StatusCodes;
 import java.io.InputStream;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.wingsofcarolina.groups.MemberListCSV;
 import org.wingsofcarolina.groups.MemberListXLS;
+import org.wingsofcarolina.groups.MemberReader;
 import org.wingsofcarolina.groups.domain.Member;
 
 public class PopulateHandler implements HttpHandler {
@@ -33,11 +36,12 @@ public class PopulateHandler implements HttpHandler {
     if (attachment != null) {
       Deque<FormValue> members = attachment.get("members");
       if (members != null) {
-        FileItem first = members.getFirst().getFileItem();
+        FormValue upload = members.getFirst();
+        FileItem first = upload.getFileItem();
         if (first != null) {
           InputStream is = first.getInputStream();
           try {
-            MemberListXLS updateList = new MemberListXLS(is);
+            MemberReader updateList = readMemberList(is, upload.getFileName());
 
             // Snag all the members
             iterator = updateList.members().entrySet().iterator();
@@ -64,5 +68,12 @@ public class PopulateHandler implements HttpHandler {
         .getResponseSender()
         .send("{ \"code\": 400, \"message\" : \"We are not ammused.\" }");
     }
+  }
+
+  private MemberReader readMemberList(InputStream is, String fileName) throws Exception {
+    if (fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+      return new MemberListCSV(is);
+    }
+    return new MemberListXLS(is);
   }
 }

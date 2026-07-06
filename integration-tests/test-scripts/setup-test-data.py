@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import uuid
+from datetime import datetime, timezone
 
 try:
     from pymongo import MongoClient
@@ -21,11 +22,13 @@ def setup_mongodb_data():
     # Connect to MongoDB
     client = MongoClient('mongodb://localhost:27017/')
     db = client['wcfc-groups']
+    deposits_db = client['wcfc-deposits']
     
     # Clear existing data
     db.Members.drop()
     db.VerificationCode.drop()
     db.counters.drop()
+    deposits_db.members.drop()
     
     # Create test member data
     test_members = [
@@ -60,6 +63,34 @@ def setup_mongodb_data():
     
     db.Members.insert_many(test_members)
     print(f"Inserted {len(test_members)} test member records")
+
+    deposits_members = [
+        {
+            "first_name": "Test",
+            "last_name": "User",
+            "email": "test@example.com",
+            "member_number": "1001",
+            "full_name_normalized": "test user",
+            "email_normalized": "test@example.com",
+            "number_normalized": "1001",
+            "inactive": False,
+            "created_at": datetime.now(timezone.utc),
+        },
+        {
+            "first_name": "Bob",
+            "last_name": "Smith",
+            "email": "bob.smith@example.com",
+            "member_number": "1004",
+            "full_name_normalized": "bob smith",
+            "email_normalized": "bob.smith@example.com",
+            "number_normalized": "1004",
+            "inactive": False,
+            "created_at": datetime.now(timezone.utc),
+        },
+    ]
+
+    deposits_db.members.insert_many(deposits_members)
+    print(f"Inserted {len(deposits_members)} deposits member records")
     
     # Create sequence counters
     db.counters.insert_one({"_id": "members", "seq": 1005})

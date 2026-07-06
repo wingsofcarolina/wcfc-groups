@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 import requests
+from pymongo import MongoClient
 from playwright.sync_api import sync_playwright, expect
 
 WARNING_PATTERN = re.compile(r"NOTE:.*groups\.io", re.DOTALL)
@@ -241,7 +242,39 @@ def verify_api_call_counts(expected_counts):
         if actual != expected:
             raise Exception(f"Expected exactly {expected} {key} calls, found {actual}")
 
-def run_browser_scenario(page, name, test_file_path, expected_warning, expected_checkboxes, expected_counts):
+def verify_deposits_state(expected_deposits):
+    """Verify wcfc-deposits member state after submit"""
+    client = MongoClient('mongodb://localhost:27017/')
+    try:
+        members = list(client['wcfc-deposits'].members.find({}, {'_id': 0}))
+        by_number = {member['number_normalized']: member for member in members}
+
+        print("Deposits member summary:")
+        for member in sorted(members, key=lambda item: item['number_normalized']):
+            state = "inactive" if member.get('inactive') else "active"
+            print(f"  #{member['number_normalized']}: {member['email_normalized']} ({state})")
+
+        for number, expected in expected_deposits.items():
+            member = by_number.get(number)
+            if member is None:
+                raise Exception(f"Expected deposits member #{number}, but it was not found")
+
+            if member.get('inactive') != expected['inactive']:
+                raise Exception(
+                    f"Expected deposits member #{number} inactive={expected['inactive']}, "
+                    f"found {member.get('inactive')}"
+                )
+
+            for field in ('full_name_normalized', 'email_normalized', 'number_normalized'):
+                if field in expected and member.get(field) != expected[field]:
+                    raise Exception(
+                        f"Expected deposits member #{number} {field}={expected[field]}, "
+                        f"found {member.get(field)}"
+                    )
+    finally:
+        client.close()
+
+def run_browser_scenario(page, name, test_file_path, expected_warning, expected_checkboxes, expected_counts, expected_deposits):
     """Run one browser upload/submit scenario"""
     print(f"Running scenario: {name}")
     reset_mongodb_data()
@@ -286,6 +319,7 @@ def run_browser_scenario(page, name, test_file_path, expected_warning, expected_
     wait_for_page_ready(page)
 
     verify_api_call_counts(expected_counts)
+    verify_deposits_state(expected_deposits)
     print(f"✅ Scenario completed successfully: {name}")
 
 def run_update_test():
@@ -330,12 +364,32 @@ def run_update_test():
                 "add/remove changes do not show changed-email warning",
                 "/app/test-data/myfbo-report.xls",
                 expected_warning=False,
-                expected_checkboxes=2,
+                expected_checkboxes=4,
                 expected_counts={
                     'groupsio_add': 1,
                     'groupsio_remove': 1,
                     'manuals_add': 1,
                     'manuals_remove': 1
+                },
+                expected_deposits={
+                    '1001': {
+                        'inactive': False,
+                        'full_name_normalized': 'test user',
+                        'email_normalized': 'test@example.com',
+                        'number_normalized': '1001'
+                    },
+                    '1002': {
+                        'inactive': False,
+                        'full_name_normalized': 'john pilot',
+                        'email_normalized': 'john.pilot@example.com',
+                        'number_normalized': '1002'
+                    },
+                    '1004': {
+                        'inactive': True,
+                        'full_name_normalized': 'bob smith',
+                        'email_normalized': 'bob.smith@example.com',
+                        'number_normalized': '1004'
+                    }
                 }
             )
 
@@ -350,6 +404,20 @@ def run_update_test():
                     'groupsio_remove': 0,
                     'manuals_add': 1,
                     'manuals_remove': 1
+                },
+                expected_deposits={
+                    '1001': {
+                        'inactive': False,
+                        'full_name_normalized': 'test user',
+                        'email_normalized': 'test@example.com',
+                        'number_normalized': '1001'
+                    },
+                    '1004': {
+                        'inactive': False,
+                        'full_name_normalized': 'bob smith',
+                        'email_normalized': 'bob.smith@example.com',
+                        'number_normalized': '1004'
+                    }
                 }
             )
 

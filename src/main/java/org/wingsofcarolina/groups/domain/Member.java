@@ -27,8 +27,12 @@ public class Member {
   @Transient
   Boolean checked;
 
+  @Transient
+  Boolean ignoredForSync;
+
   public Member() {
     this.checked = false; // Initialize checked to false by default for JSON deserialization
+    this.ignoredForSync = false;
   }
 
   // Note, this is used ONLY for Groups.io auditing!
@@ -39,6 +43,7 @@ public class Member {
     this.email = email;
     this.level = -1;
     this.checked = false;
+    this.ignoredForSync = false;
   }
 
   public Member(Integer id, String fname, String lname, String email, Integer level) {
@@ -49,6 +54,7 @@ public class Member {
     this.email = email;
     this.level = level;
     this.checked = false; // Initialize checked to false by default
+    this.ignoredForSync = false;
   }
 
   public Integer getId() {
@@ -65,6 +71,14 @@ public class Member {
 
   public void setChecked(Boolean checked) {
     this.checked = checked;
+  }
+
+  public Boolean getIgnoredForSync() {
+    return ignoredForSync;
+  }
+
+  public void setIgnoredForSync(Boolean ignoredForSync) {
+    this.ignoredForSync = ignoredForSync;
   }
 
   public String getName() {

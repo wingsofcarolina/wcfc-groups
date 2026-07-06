@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation';
 	import Textfield from '@smui/textfield';
 	import Button from '@smui/button';
-	import Members from '$lib/components/Members.svelte';
 	import { Label } from '@smui/common';
 	import { NotificationDisplay, notifier } from '@beyonk/svelte-notifications';
 
@@ -38,6 +37,26 @@
 	type DepositsChange = {
 		oldMember: Omit<DepositsMember, 'checked'>;
 		newMember: Omit<DepositsMember, 'checked'>;
+		checked: boolean;
+	};
+
+	type SummaryAction<T> = {
+		value: T;
+		checked: boolean;
+		warning?: boolean;
+	};
+
+	type SummaryRow = {
+		key: string;
+		label: string;
+		groups?: SummaryAction<Member | EmailChange>;
+		manuals?: SummaryAction<Member | EmailChange>;
+		deposits?: SummaryAction<DepositsMember | DepositsChange>;
+	};
+
+	type ChangedAppRow = {
+		app: string;
+		value: string;
 	};
 
 	type UploadResponse = {
@@ -56,6 +75,9 @@
 	let depositsAdded: DepositsMember[] | null = null;
 	let depositsRemoved: DepositsMember[] | null = null;
 	let depositsChanged: DepositsChange[] | null = null;
+	let addedRows: SummaryRow[] = [];
+	let removedRows: SummaryRow[] = [];
+	let changedRows: SummaryRow[] = [];
 
 	onMount(async () => {});
 
@@ -90,7 +112,11 @@
 					...item,
 					checked: true
 				}));
-				depositsChanged = json.depositsChanged ?? [];
+				depositsChanged = (json.depositsChanged ?? []).map((item) => ({
+					...item,
+					checked: true
+				}));
+				buildSummaryRows();
 			} else {
 				notifier.warning('File failed to upload (not a Flight Circle CSV?)');
 			}
@@ -117,6 +143,9 @@
 		depositsAdded = null;
 		depositsRemoved = null;
 		depositsChanged = null;
+		addedRows = [];
+		removedRows = [];
+		changedRows = [];
 		files = null;
 	};
 
@@ -139,14 +168,7 @@
 		//   console.log('Removed : ' + item.checked + ' : ' + item.email);
 		// });
 
-		const json = JSON.stringify({
-			added: added,
-			removed: removed,
-			changed: changed,
-			depositsAdded: depositsAdded,
-			depositsRemoved: depositsRemoved,
-			depositsChanged: depositsChanged
-		});
+		const json = JSON.stringify(buildUpdateRequest());
 
 		const response = await fetch('/update', {
 			method: 'post',
@@ -174,6 +196,152 @@
 		member: Pick<DepositsMember, 'firstName' | 'lastName' | 'email' | 'memberNumber' | 'inactive'>
 	) =>
 		`${depositsName(member)} <${member.email}> #${member.memberNumber}${member.inactive ? ' inactive' : ' active'}`;
+
+	const memberSummary = (member: Pick<Member, 'name' | 'email' | 'id'>) =>
+		`${member.name} <${member.email}> #${member.id}`;
+
+	const memberTargetSummary = (member: Pick<Member, 'name' | 'email' | 'id'>) =>
+		`${member.name} <${member.email}> #${member.id}`;
+
+	const memberKey = (member: Pick<Member, 'id'>) => normalizeMemberNumber(String(member.id));
+
+	const depositsKey = (member: Pick<DepositsMember, 'memberNumber'>) =>
+		normalizeMemberNumber(member.memberNumber);
+
+	const normalizeMemberNumber = (value: string) => {
+		const trimmed = value.trim();
+		if (/^\d+$/.test(trimmed)) {
+			return trimmed.replace(/^0+/, '') || '0';
+		}
+		return trimmed.toLowerCase();
+	};
+
+	const ensureRow = (rows: Map<string, SummaryRow>, key: string, label: string) => {
+		let row = rows.get(key);
+		if (!row) {
+			row = { key, label };
+			rows.set(key, row);
+		} else if (!row.label) {
+			row.label = label;
+		}
+		return row;
+	};
+
+	const buildMemberRows = (
+		members: Member[],
+		depositsMembers: DepositsMember[],
+		actionLabel: 'added' | 'removed'
+	) => {
+		const rows = new Map<string, SummaryRow>();
+		members.forEach((member) => {
+			const row = ensureRow(rows, memberKey(member), memberSummary(member));
+			row.groups = { value: member, checked: member.checked };
+			row.manuals = { value: member, checked: member.checked };
+		});
+		depositsMembers.forEach((member) => {
+			const label =
+				actionLabel === 'removed'
+					? depositsSummary(member)
+					: `${depositsName(member)} <${member.email}> #${member.memberNumber}`;
+			const row = ensureRow(rows, depositsKey(member), label);
+			row.deposits = { value: member, checked: member.checked };
+		});
+		return Array.from(rows.values()).sort((a, b) =>
+			a.key.localeCompare(b.key, undefined, { numeric: true })
+		);
+	};
+
+	const buildChangedRows = () => {
+		const rows = new Map<string, SummaryRow>();
+		(changed ?? []).forEach((emailChange) => {
+			const row = ensureRow(
+				rows,
+				memberKey(emailChange.newMember),
+				memberTargetSummary(emailChange.newMember)
+			);
+			row.groups = { value: emailChange, checked: false, warning: true };
+			row.manuals = { value: emailChange, checked: emailChange.checked };
+		});
+		(depositsChanged ?? []).forEach((depositsChange) => {
+			const row = ensureRow(
+				rows,
+				depositsKey(depositsChange.newMember),
+				depositsSummary(depositsChange.newMember)
+			);
+			row.deposits = { value: depositsChange, checked: depositsChange.checked };
+		});
+		return Array.from(rows.values()).sort((a, b) =>
+			a.key.localeCompare(b.key, undefined, { numeric: true })
+		);
+	};
+
+	const buildSummaryRows = () => {
+		addedRows = buildMemberRows(added ?? [], depositsAdded ?? [], 'added');
+		removedRows = buildMemberRows(removed ?? [], depositsRemoved ?? [], 'removed');
+		changedRows = buildChangedRows();
+	};
+
+	const checkedValues = <T,>(rows: SummaryRow[], system: 'groups' | 'manuals' | 'deposits') =>
+		rows
+			.map((row) => row[system] as SummaryAction<T> | undefined)
+			.filter((action): action is SummaryAction<T> => Boolean(action?.checked && !action.warning))
+			.map((action) => ({ ...action.value, checked: true }));
+
+	const buildUpdateRequest = () => ({
+		added: [],
+		removed: [],
+		changed: [],
+		groupsAdded: checkedValues<Member>(addedRows, 'groups'),
+		groupsRemoved: checkedValues<Member>(removedRows, 'groups'),
+		manualsAdded: checkedValues<Member>(addedRows, 'manuals'),
+		manualsRemoved: checkedValues<Member>(removedRows, 'manuals'),
+		manualsChanged: checkedValues<EmailChange>(changedRows, 'manuals'),
+		depositsAdded: checkedValues<DepositsMember>(addedRows, 'deposits'),
+		depositsRemoved: checkedValues<DepositsMember>(removedRows, 'deposits'),
+		depositsChanged: checkedValues<DepositsChange>(changedRows, 'deposits')
+	});
+
+	const hasChanges = () => addedRows.length > 0 || removedRows.length > 0 || changedRows.length > 0;
+
+	const emailChangeFor = (row: SummaryRow) => row.manuals?.value as EmailChange | undefined;
+
+	const depositsChangeFor = (row: SummaryRow) => row.deposits?.value as DepositsChange | undefined;
+
+	const changedAppRows = (row: SummaryRow): ChangedAppRow[] => {
+		const emailChange = emailChangeFor(row);
+		const depositsChange = depositsChangeFor(row);
+		const flightCircleValue = emailChange
+			? memberTargetSummary(emailChange.newMember)
+			: depositsChange
+				? depositsSummary(depositsChange.newMember)
+				: row.label;
+		const rows: ChangedAppRow[] = [
+			{
+				app: 'Flight Circle',
+				value: flightCircleValue
+			}
+		];
+
+		if (emailChange) {
+			rows.push({
+				app: 'Groups.io',
+				value: memberSummary(emailChange.oldMember)
+			});
+			rows.push({
+				app: 'Manuals',
+				value: memberSummary(emailChange.oldMember)
+			});
+		}
+
+		if (depositsChange) {
+			rows.push({
+				app: 'Deposits',
+				value: depositsSummary(depositsChange.oldMember)
+			});
+		}
+
+		return rows;
+	};
 </script>
 
 <NotificationDisplay />
@@ -197,81 +365,141 @@
 		</div>
 	{:else}
 		<div class="response">
-			{#if added.length > 0 || removed.length > 0 || changed.length > 0 || depositsAdded.length > 0 || depositsRemoved.length > 0 || depositsChanged.length > 0}
+			{#if hasChanges()}
 				<div class="prompt">Membership Changes</div>
 
-				{#if changed.length > 0}
-					<div class="warning">
-						NOTE: Manual intervention is required to update the email addresses on existing
-						groups.io accounts. Changed email addresses will NOT be updated in groups.io. Please
-						make a note of these address changes before proceeding and notify the groups.io
-						administrators.
-					</div>
-				{/if}
-
-				{#if depositsChanged.length > 0}
-					<div class="warning">
-						NOTE: Manual intervention is required to update changed member records in wcfc-deposits.
-						Changed deposits records will NOT be updated. Please review these records before
-						proceeding.
-					</div>
-				{/if}
-
 				<div class="changes">
-					{#if added.length > 0}
-						<Members label="Added Members" bind:value={added} />
-					{/if}
-
-					{#if removed.length > 0}
-						<Members label="Removed Members" bind:value={removed} />
-					{/if}
-
-					{#if changed.length > 0}
-						<div class="members">
-							<div class="label">Changed E-mail Addresses</div>
-							{#each changed as emailChange}
-								<div class="member">
-									<input type="checkbox" bind:checked={emailChange.checked} />
-									{emailChange.newMember.name}: {emailChange.oldMember.email} -&gt;
-									{emailChange.newMember.email}
-								</div>
-							{/each}
+					{#if addedRows.length > 0}
+						<div class="change-section">
+							<div class="label">Added</div>
+							<table class="change-table">
+								<thead>
+									<tr>
+										<th>Member</th>
+										<th>Groups.io</th>
+										<th>Manuals</th>
+										<th>Deposits</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each addedRows as row}
+										<tr>
+											<td>{row.label}</td>
+											<td
+												>{#if row.groups}<input
+														type="checkbox"
+														bind:checked={row.groups.checked}
+													/>{/if}</td
+											>
+											<td
+												>{#if row.manuals}<input
+														type="checkbox"
+														bind:checked={row.manuals.checked}
+													/>{/if}</td
+											>
+											<td
+												>{#if row.deposits}<input
+														type="checkbox"
+														bind:checked={row.deposits.checked}
+													/>{/if}</td
+											>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
 						</div>
 					{/if}
 
-					{#if depositsAdded.length > 0}
-						<div class="members">
-							<div class="label">Deposits Members to Add</div>
-							{#each depositsAdded as member}
-								<div class="member">
-									<input type="checkbox" bind:checked={member.checked} />
-									{depositsName(member)} &lt;{member.email}&gt; #{member.memberNumber}
-								</div>
-							{/each}
+					{#if removedRows.length > 0}
+						<div class="change-section">
+							<div class="label">Removed</div>
+							<table class="change-table">
+								<thead>
+									<tr>
+										<th>Member</th>
+										<th>Groups.io</th>
+										<th>Manuals</th>
+										<th>Deposits</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each removedRows as row}
+										<tr>
+											<td>{row.label}</td>
+											<td
+												>{#if row.groups}<input
+														type="checkbox"
+														bind:checked={row.groups.checked}
+													/>{/if}</td
+											>
+											<td
+												>{#if row.manuals}<input
+														type="checkbox"
+														bind:checked={row.manuals.checked}
+													/>{/if}</td
+											>
+											<td
+												>{#if row.deposits}<input
+														type="checkbox"
+														bind:checked={row.deposits.checked}
+													/>{/if}</td
+											>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
 						</div>
 					{/if}
 
-					{#if depositsRemoved.length > 0}
-						<div class="members">
-							<div class="label">Deposits Members to Mark Inactive</div>
-							{#each depositsRemoved as member}
-								<div class="member">
-									<input type="checkbox" bind:checked={member.checked} />
-									{depositsName(member)} &lt;{member.email}&gt; #{member.memberNumber}
-								</div>
-							{/each}
-						</div>
-					{/if}
-
-					{#if depositsChanged.length > 0}
-						<div class="members">
-							<div class="label">Changed Deposits Records</div>
-							{#each depositsChanged as depositsChange}
-								<div class="member">
-									{depositsSummary(depositsChange.oldMember)} -&gt;
-									{depositsSummary(depositsChange.newMember)}
-								</div>
-							{/each}
+					{#if changedRows.length > 0}
+						<div class="change-section">
+							<div class="label">Changed</div>
+							<table class="change-table">
+								<thead>
+									<tr>
+										<th>Member</th>
+										<th>Groups.io</th>
+										<th>Manuals</th>
+										<th>Deposits</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each changedRows as row}
+										<tr>
+											<td>
+												<div class="changed-member-grid">
+													{#each changedAppRows(row) as appRow}
+														<div class="changed-app">{appRow.app}</div>
+														<div>{appRow.value}</div>
+													{/each}
+												</div>
+											</td>
+											<td>
+												{#if row.groups?.warning}
+													<span
+														class="manual-warning"
+														title="This email address must be updated manually in groups.io">!</span
+													>
+												{:else if row.groups}
+													<input type="checkbox" bind:checked={row.groups.checked} />
+												{/if}
+											</td>
+											<td
+												>{#if row.manuals}<input
+														type="checkbox"
+														bind:checked={row.manuals.checked}
+													/>{/if}</td
+											>
+											<td
+												>{#if row.deposits}<input
+														type="checkbox"
+														bind:checked={row.deposits.checked}
+													/>{/if}</td
+											>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
 						</div>
 					{/if}
 				</div>
@@ -307,12 +535,37 @@
 		margin-top: 20px;
 		margin-bottom: 25px;
 	}
-	.members {
-		width: fit-content;
+	.change-section {
+		margin-top: 18px;
+		max-width: 980px;
 	}
-	.member {
-		margin: 5px;
+	.change-table {
+		border-collapse: collapse;
+		margin-top: 8px;
+		width: 100%;
 		font-size: 14px;
+	}
+	.change-table th,
+	.change-table td {
+		border-bottom: 1px solid #ddd;
+		padding: 7px 10px;
+		text-align: left;
+		vertical-align: top;
+	}
+	.change-table th:not(:first-child),
+	.change-table td:not(:first-child) {
+		text-align: center;
+		width: 92px;
+	}
+	.changed-member-grid {
+		display: grid;
+		grid-template-columns: 96px minmax(260px, 1fr);
+		gap: 4px 10px;
+		line-height: 1.25;
+	}
+	.changed-app {
+		color: #4b5563;
+		font-weight: 700;
 	}
 	.label {
 		font-size: 16px;
@@ -320,16 +573,16 @@
 		border-bottom: solid;
 		display: inline-block;
 	}
-	.warning {
-		margin-top: 15px;
-		margin-bottom: 15px;
-		max-width: 760px;
-		border-left: 4px solid #b00020;
-		padding: 10px;
-		background: #fff7f7;
-		color: #5f0011;
-		font-size: 14px;
-		line-height: 1.4;
+	.manual-warning {
+		background: #f7c948;
+		border-radius: 50%;
+		color: #3b2f00;
+		display: inline-block;
+		font-weight: 700;
+		height: 20px;
+		line-height: 20px;
+		text-align: center;
+		width: 20px;
 	}
 	.prompt {
 		font-size: 20px;

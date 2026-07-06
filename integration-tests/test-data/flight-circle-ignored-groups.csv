@@ -1,0 +1,5 @@
+CustomerID,First Name,Last Name,Email,Groups,Member Number,Status
+1,Test,User,test@example.com,Courtesy Members,1001,Active
+2,John,Pilot,john.pilot@example.com,Key Members,1002,Active
+3,Jane,Pilot,jane.pilot@example.com,Waiting for Membership,1003,Active
+4,Bob,Smith,bob.smith@example.com,Key Members,1004,Suspended

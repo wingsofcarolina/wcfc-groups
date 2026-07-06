@@ -4,10 +4,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.domain.Member;
@@ -104,11 +106,14 @@ public abstract class MemberReader {
     Integer id = Integer.parseInt(idText.trim());
     String fname = value(header, row, "first name");
     String lname = value(header, row, "last name");
-    Integer level = flightCircleLevel(
-      value(header, row, "groups"),
-      value(header, row, "status")
+    String groups = value(header, row, "groups");
+    String status = value(header, row, "status");
+    Integer level = flightCircleLevel(groups, status);
+    Member member = new Member(id, fname, lname, email, level);
+    member.setIgnoredForSync(
+      isIgnoredFlightCircleGroup(groups) || !isActiveFlightCircleStatus(status)
     );
-    return new Member(id, fname, lname, email, level);
+    return member;
   }
 
   private String value(Map<String, Integer> header, String[] row, String column) {
@@ -124,8 +129,11 @@ public abstract class MemberReader {
   }
 
   private Integer flightCircleLevel(String groups, String status) {
-    if (!isBlank(status) && !status.equalsIgnoreCase("Active")) {
+    if (!isActiveFlightCircleStatus(status)) {
       return 7;
+    }
+    if (isIgnoredFlightCircleGroup(groups)) {
+      return 3;
     }
 
     String normalizedGroups = groups.toLowerCase(Locale.ROOT);
@@ -134,9 +142,6 @@ public abstract class MemberReader {
     }
     if (normalizedGroups.contains("non-flying")) {
       return 1;
-    }
-    if (normalizedGroups.contains("waiting")) {
-      return 2;
     }
     if (normalizedGroups.contains("key")) {
       return 3;
@@ -147,9 +152,6 @@ public abstract class MemberReader {
       normalizedGroups.contains("staff")
     ) {
       return 4;
-    }
-    if (normalizedGroups.contains("courtesy")) {
-      return 5;
     }
     if (normalizedGroups.contains("resign")) {
       return 6;
@@ -173,6 +175,18 @@ public abstract class MemberReader {
 
   private boolean isBlank(String value) {
     return value == null || value.trim().isEmpty();
+  }
+
+  private boolean isIgnoredFlightCircleGroup(String groups) {
+    String normalizedGroups = groups.trim().toLowerCase(Locale.ROOT);
+    return (
+      normalizedGroups.equals("waiting for membership") ||
+      normalizedGroups.equals("courtesy members")
+    );
+  }
+
+  private boolean isActiveFlightCircleStatus(String status) {
+    return !isBlank(status) && status.equalsIgnoreCase("Active");
   }
 
   public Map<Integer, Member> members() {
@@ -233,9 +247,32 @@ public abstract class MemberReader {
     while (iterator.hasNext()) {
       Map.Entry<Integer, Member> entry = iterator.next();
       Member member = entry.getValue();
-      if (isNotActive(member) || isCruft(member)) {
+      if (
+        isNotActive(member) ||
+        Boolean.TRUE.equals(member.getIgnoredForSync()) ||
+        isCruft(member)
+      ) {
         iterator.remove();
       }
+    }
+  }
+
+  public Set<Integer> ignoredForSyncMemberIds() {
+    Set<Integer> ignored = new HashSet<Integer>();
+    Iterator<Map.Entry<Integer, Member>> iterator = memberList.entrySet().iterator();
+    while (iterator.hasNext()) {
+      Map.Entry<Integer, Member> entry = iterator.next();
+      if (Boolean.TRUE.equals(entry.getValue().getIgnoredForSync())) {
+        ignored.add(entry.getKey());
+      }
+    }
+    return ignored;
+  }
+
+  public void removeMemberIds(Set<Integer> memberIds) {
+    Iterator<Integer> iterator = memberIds.iterator();
+    while (iterator.hasNext()) {
+      memberList.remove(iterator.next());
     }
   }
 

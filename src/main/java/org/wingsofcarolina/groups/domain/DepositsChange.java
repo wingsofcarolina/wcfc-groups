@@ -4,12 +4,16 @@ public class DepositsChange {
 
   private DepositsMember oldMember;
   private DepositsMember newMember;
+  private Boolean checked;
 
-  public DepositsChange() {}
+  public DepositsChange() {
+    this.checked = false;
+  }
 
   public DepositsChange(DepositsMember oldMember, DepositsMember newMember) {
     this.oldMember = oldMember;
     this.newMember = newMember;
+    this.checked = false;
   }
 
   public DepositsMember getOldMember() {
@@ -26,5 +30,13 @@ public class DepositsChange {
 
   public void setNewMember(DepositsMember newMember) {
     this.newMember = newMember;
+  }
+
+  public Boolean getChecked() {
+    return checked;
+  }
+
+  public void setChecked(Boolean checked) {
+    this.checked = checked;
   }
 }

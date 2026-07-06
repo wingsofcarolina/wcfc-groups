@@ -1,6 +1,7 @@
 package org.wingsofcarolina.groups.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Locale;
@@ -45,9 +46,11 @@ public class DepositsMember {
     member.setLastName(document.getString("last_name"));
     member.setEmail(document.getString("email"));
     member.setMemberNumber(document.getString("member_number"));
-    member.setFullNameNormalized(document.getString("full_name_normalized"));
-    member.setEmailNormalized(document.getString("email_normalized"));
-    member.setNumberNormalized(document.getString("number_normalized"));
+    member.setFullNameNormalized(
+      normalizeFullName(member.getFirstName(), member.getLastName())
+    );
+    member.setEmailNormalized(normalizeEmail(member.getEmail()));
+    member.setNumberNormalized(normalizeMemberNumber(member.getMemberNumber()));
     member.setInactive(Boolean.TRUE.equals(document.getBoolean("inactive")));
     Date createdAt = document.getDate("created_at");
     if (createdAt != null) {
@@ -85,8 +88,6 @@ public class DepositsMember {
     return (
       equals(firstName, other.firstName) &&
       equals(lastName, other.lastName) &&
-      equals(email, other.email) &&
-      equals(memberNumber, other.memberNumber) &&
       equals(fullNameNormalized, other.fullNameNormalized) &&
       equals(emailNormalized, other.emailNormalized) &&
       equals(numberNormalized, other.numberNormalized) &&
@@ -109,7 +110,11 @@ public class DepositsMember {
   }
 
   public static String normalizeMemberNumber(String number) {
-    return trim(number).toLowerCase(Locale.ROOT);
+    String trimmed = trim(number);
+    if (trimmed.matches("\\d+")) {
+      return new BigInteger(trimmed).toString();
+    }
+    return trimmed.toLowerCase(Locale.ROOT);
   }
 
   private static boolean equals(String a, String b) {

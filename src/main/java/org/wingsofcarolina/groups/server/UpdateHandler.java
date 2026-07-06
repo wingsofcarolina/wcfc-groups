@@ -43,17 +43,21 @@ public class UpdateHandler implements HttpHandler {
     }
 
     // Remove all members that are not "checked"
-    List<Member> added = clean(result.getAdded());
-    List<Member> removed = clean(result.getRemoved());
-    List<EmailChange> changed = cleanChanges(result.getChanged());
+    List<Member> groupsAdded = clean(result.getGroupsAdded());
+    List<Member> groupsRemoved = clean(result.getGroupsRemoved());
+    List<Member> manualsAdded = clean(result.getManualsAdded());
+    List<Member> manualsRemoved = clean(result.getManualsRemoved());
+    List<EmailChange> manualsChanged = cleanChanges(result.getManualsChanged());
     List<DepositsMember> depositsAdded = cleanDeposits(result.getDepositsAdded());
     List<DepositsMember> depositsRemoved = cleanDeposits(result.getDepositsRemoved());
     List<DepositsChange> depositsChanged = cleanDepositsChanges(
       result.getDepositsChanged()
     );
-    logger.info("Added   --> " + added.size() + " : " + added);
-    logger.info("Removed --> " + removed.size() + " : " + removed);
-    logger.info("Changed --> " + changed.size() + " : " + changed);
+    logger.info("Groups.io added   --> " + groupsAdded.size() + " : " + groupsAdded);
+    logger.info("Groups.io removed --> " + groupsRemoved.size() + " : " + groupsRemoved);
+    logger.info("Manuals added   --> " + manualsAdded.size() + " : " + manualsAdded);
+    logger.info("Manuals removed --> " + manualsRemoved.size() + " : " + manualsRemoved);
+    logger.info("Manuals changed --> " + manualsChanged.size() + " : " + manualsChanged);
     logger.info("Deposits added   --> " + depositsAdded.size() + " : " + depositsAdded);
     logger.info(
       "Deposits removed --> " + depositsRemoved.size() + " : " + depositsRemoved
@@ -66,7 +70,7 @@ public class UpdateHandler implements HttpHandler {
     ManualsService mio = new ManualsService().initialize();
 
     GroupsIoService gio = null;
-    if (added.size() > 0 || removed.size() > 0) {
+    if (groupsAdded.size() > 0 || groupsRemoved.size() > 0) {
       // Initialize Groups.io service with API key only when Groups.io must change.
       gio = new GroupsIoService().initialize();
       String apiKey = System.getenv("GROUPS_IO_API_KEY");
@@ -84,28 +88,34 @@ public class UpdateHandler implements HttpHandler {
     }
 
     logger.info("Updating Groups.io membership list and member database.");
-    if (added.size() > 0) {
-      gio.addMultipleMembers(added);
-      mio.addMultipleMembers(added);
-      Iterator<Member> it = added.iterator();
+    if (groupsAdded.size() > 0) {
+      gio.addMultipleMembers(groupsAdded);
+      Iterator<Member> it = groupsAdded.iterator();
       while (it.hasNext()) {
         Member member = it.next();
         member.save();
       }
     }
-    if (removed.size() > 0) {
-      gio.removeMultipleMembers(removed);
-      mio.removeMultipleMembers(removed);
-      Iterator<Member> it = removed.iterator();
+    if (groupsRemoved.size() > 0) {
+      gio.removeMultipleMembers(groupsRemoved);
+      Iterator<Member> it = groupsRemoved.iterator();
       while (it.hasNext()) {
         Member member = it.next();
         member = Member.getByID(member.getId());
-        member.delete();
+        if (member != null) {
+          member.delete();
+        }
       }
     }
-    if (changed.size() > 0) {
+    if (manualsAdded.size() > 0) {
+      mio.addMultipleMembers(manualsAdded);
+    }
+    if (manualsRemoved.size() > 0) {
+      mio.removeMultipleMembers(manualsRemoved);
+    }
+    if (manualsChanged.size() > 0) {
       logger.info("Updating changed email addresses in Manuals and local database only.");
-      Iterator<EmailChange> it = changed.iterator();
+      Iterator<EmailChange> it = manualsChanged.iterator();
       while (it.hasNext()) {
         EmailChange emailChange = it.next();
         Member oldMember = emailChange.getOldMember();
@@ -116,16 +126,14 @@ public class UpdateHandler implements HttpHandler {
         updateLocalMember(newMember);
       }
     }
-    if (depositsAdded.size() > 0 || depositsRemoved.size() > 0) {
+    if (
+      depositsAdded.size() > 0 || depositsRemoved.size() > 0 || depositsChanged.size() > 0
+    ) {
       try (DepositsService depositsService = new DepositsService().initialize()) {
         depositsService.addMultipleMembers(depositsAdded);
         depositsService.removeMultipleMembers(depositsRemoved);
+        depositsService.updateMultipleMembers(depositsChanged);
       }
-    }
-    if (depositsChanged.size() > 0) {
-      logger.info(
-        "Deposits changed members require manual intervention; no deposits updates applied."
-      );
     }
 
     hse.setStatusCode(StatusCodes.OK);
@@ -205,6 +213,13 @@ public class UpdateHandler implements HttpHandler {
   List<DepositsChange> cleanDepositsChanges(List<DepositsChange> changes) {
     if (changes == null) {
       return List.of();
+    }
+    Iterator<DepositsChange> it = changes.iterator();
+    while (it.hasNext()) {
+      DepositsChange change = it.next();
+      if (!Boolean.TRUE.equals(change.getChecked())) {
+        it.remove();
+      }
     }
     return changes;
   }

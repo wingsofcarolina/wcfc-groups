@@ -6,15 +6,12 @@ Includes WireMock setup and complete user workflow testing
 
 import json
 import os
-import re
 import subprocess
 import sys
 import time
 import requests
 from pymongo import MongoClient
 from playwright.sync_api import sync_playwright, expect
-
-WARNING_PATTERN = re.compile(r"NOTE:.*groups\.io", re.DOTALL)
 
 def setup_wiremock_stubs():
     """Setup WireMock stubs for Groups.io and WCFC-Manuals APIs"""
@@ -293,13 +290,13 @@ def run_browser_scenario(page, name, test_file_path, expected_warning, expected_
     print("Waiting for results page...")
     wait_for_page_ready(page)
 
-    warning = page.get_by_text(WARNING_PATTERN)
+    manual_warning = page.locator('.manual-warning')
     if expected_warning:
-        expect(warning).to_be_visible(timeout=10000)
-        print("✅ Expected changed-email warning is visible")
+        expect(manual_warning).to_be_visible(timeout=10000)
+        print("✅ Expected changed-email manual-update marker is visible")
     else:
-        expect(warning).to_have_count(0)
-        print("✅ Changed-email warning is not visible")
+        expect(manual_warning).to_have_count(0)
+        print("✅ Changed-email manual-update marker is not visible")
 
     checkboxes = page.locator('input[type="checkbox"]')
     checkbox_count = checkboxes.count()
@@ -364,7 +361,7 @@ def run_update_test():
                 "add/remove changes do not show changed-email warning",
                 "/app/test-data/myfbo-report.xls",
                 expected_warning=False,
-                expected_checkboxes=4,
+                expected_checkboxes=6,
                 expected_counts={
                     'groupsio_add': 1,
                     'groupsio_remove': 1,
@@ -395,10 +392,44 @@ def run_update_test():
 
             run_browser_scenario(
                 page,
+                "courtesy, waiting, and non-active members are ignored for all sync targets",
+                "/app/test-data/flight-circle-ignored-groups.csv",
+                expected_warning=False,
+                expected_checkboxes=3,
+                expected_counts={
+                    'groupsio_add': 1,
+                    'groupsio_remove': 0,
+                    'manuals_add': 1,
+                    'manuals_remove': 0
+                },
+                expected_deposits={
+                    '1001': {
+                        'inactive': False,
+                        'full_name_normalized': 'test user',
+                        'email_normalized': 'test@example.com',
+                        'number_normalized': '1001'
+                    },
+                    '1002': {
+                        'inactive': False,
+                        'full_name_normalized': 'john pilot',
+                        'email_normalized': 'john.pilot@example.com',
+                        'number_normalized': '1002'
+                    },
+                    '1004': {
+                        'inactive': False,
+                        'full_name_normalized': 'bob smith',
+                        'email_normalized': 'bob.smith@example.com',
+                        'number_normalized': '1004'
+                    }
+                }
+            )
+
+            run_browser_scenario(
+                page,
                 "changed email shows warning and skips groups.io",
                 "/app/test-data/myfbo-report-email-change.xls",
                 expected_warning=True,
-                expected_checkboxes=1,
+                expected_checkboxes=2,
                 expected_counts={
                     'groupsio_add': 0,
                     'groupsio_remove': 0,
@@ -409,7 +440,7 @@ def run_update_test():
                     '1001': {
                         'inactive': False,
                         'full_name_normalized': 'test user',
-                        'email_normalized': 'test@example.com',
+                        'email_normalized': 'test.changed@example.com',
                         'number_normalized': '1001'
                     },
                     '1004': {

@@ -51,6 +51,8 @@ public class UploadHandler implements HttpHandler {
 
             // First, remove all waitlist and cruft entries
             boolean found = false;
+            Set<Integer> ignoredForSyncMemberIds = updateList.ignoredForSyncMemberIds();
+            savedList.removeMemberIds(ignoredForSyncMemberIds);
             savedList.clean();
             updateList.clean();
 
@@ -96,7 +98,7 @@ public class UploadHandler implements HttpHandler {
             if (!found) logger.info("No members removed.");
 
             try (DepositsService depositsService = new DepositsService().initialize()) {
-              depositsDiff = depositsService.diff(updateList);
+              depositsDiff = depositsService.diff(updateList, ignoredForSyncMemberIds);
             }
           } catch (Exception ex) {
             logger.info(ex.getMessage());

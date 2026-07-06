@@ -1,6 +1,8 @@
 package org.wingsofcarolina.groups.http;
 
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Filters.or;
+import static com.mongodb.client.model.Updates.combine;
 import static com.mongodb.client.model.Updates.set;
 
 import com.mongodb.client.FindIterable;
@@ -12,7 +14,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.MemberReader;
@@ -40,8 +44,13 @@ public class DepositsService implements AutoCloseable {
   }
 
   public DepositsDiff diff(MemberReader updateList) {
+    return diff(updateList, Set.of());
+  }
+
+  public DepositsDiff diff(MemberReader updateList, Set<Integer> ignoredMemberIds) {
     Map<String, DepositsMember> csvMembers = depositsMembersByNumber(updateList);
     Map<String, DepositsMember> savedMembers = depositsMembersByNumber();
+    removeIgnoredMembers(savedMembers, ignoredMemberIds);
 
     DepositsDiff diff = new DepositsDiff();
     for (Map.Entry<String, DepositsMember> entry : csvMembers.entrySet()) {
@@ -63,6 +72,18 @@ public class DepositsService implements AutoCloseable {
       }
     }
     return diff;
+  }
+
+  private void removeIgnoredMembers(
+    Map<String, DepositsMember> membersByNumber,
+    Set<Integer> ignoredMemberIds
+  ) {
+    Iterator<Integer> it = ignoredMemberIds.iterator();
+    while (it.hasNext()) {
+      membersByNumber.remove(
+        DepositsMember.normalizeMemberNumber(String.valueOf(it.next()))
+      );
+    }
   }
 
   public void addMultipleMembers(List<DepositsMember> added) {
@@ -95,7 +116,48 @@ public class DepositsService implements AutoCloseable {
       member.getMemberNumber()
     );
     logger.info("Marking deposits member #{} inactive", numberNormalized);
-    members.updateOne(eq("number_normalized", numberNormalized), set("inactive", true));
+    members.updateOne(memberNumberFilter(member), set("inactive", true));
+  }
+
+  public void updateMultipleMembers(List<DepositsChange> changed) {
+    Iterator<DepositsChange> it = changed.iterator();
+    while (it.hasNext()) {
+      updateMember(it.next());
+    }
+  }
+
+  public void updateMember(DepositsChange change) {
+    DepositsMember oldMember = change.getOldMember();
+    DepositsMember member = change.getNewMember();
+    member.prepareForInsert();
+    logger.info(
+      "Updating deposits member {} <{}> #{}",
+      member.displayName(),
+      member.getEmail(),
+      member.getMemberNumber()
+    );
+    members.updateOne(
+      or(memberNumberFilter(oldMember), memberNumberFilter(member)),
+      combine(
+        set("first_name", member.getFirstName()),
+        set("last_name", member.getLastName()),
+        set("email", member.getEmail()),
+        set("member_number", member.getMemberNumber()),
+        set("full_name_normalized", member.getFullNameNormalized()),
+        set("email_normalized", member.getEmailNormalized()),
+        set("number_normalized", member.getNumberNormalized()),
+        set("inactive", Boolean.TRUE.equals(member.getInactive()))
+      )
+    );
+  }
+
+  private Bson memberNumberFilter(DepositsMember member) {
+    String memberNumber = member.getMemberNumber();
+    String numberNormalized = DepositsMember.normalizeMemberNumber(memberNumber);
+    return or(
+      eq("number_normalized", numberNormalized),
+      eq("member_number", memberNumber)
+    );
   }
 
   @Override

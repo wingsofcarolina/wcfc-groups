@@ -20,7 +20,7 @@
 		"@smui/textfield": "^9.0.1",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.69.1",
-		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"eslint": "^10.6.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.20.0",
@@ -33,7 +33,7 @@
 	"dependencies": {
 		"@beyonk/svelte-notifications": "^4.3.0",
 		"@sveltejs/adapter-static": "^3.0.10",
-		"svelte-check": "^4.7.1",
+		"svelte-check": "^4.7.2",
 		"svelte-pdf": "^2.0.2",
 		"typescript": "^6.0.3"
 	},

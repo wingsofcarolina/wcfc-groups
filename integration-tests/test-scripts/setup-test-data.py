@@ -90,6 +90,9 @@ def setup_mongodb_data():
     ]
 
     deposits_db.members.insert_many(deposits_members)
+    deposits_db.members.create_index('email_normalized', unique=True)
+    deposits_db.members.create_index('number_normalized', unique=True)
+    deposits_db.members.create_index('full_name_normalized', unique=True)
     print(f"Inserted {len(deposits_members)} deposits member records")
     
     # Create sequence counters

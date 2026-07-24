@@ -251,6 +251,12 @@ def verify_deposits_state(expected_deposits):
             state = "inactive" if member.get('inactive') else "active"
             print(f"  #{member['number_normalized']}: {member['email_normalized']} ({state})")
 
+        if set(by_number) != set(expected_deposits):
+            raise Exception(
+                f"Expected deposits member numbers {sorted(expected_deposits)}, "
+                f"found {sorted(by_number)}"
+            )
+
         for number, expected in expected_deposits.items():
             member = by_number.get(number)
             if member is None:
@@ -271,10 +277,12 @@ def verify_deposits_state(expected_deposits):
     finally:
         client.close()
 
-def run_browser_scenario(page, name, test_file_path, expected_warning, expected_checkboxes, expected_counts, expected_deposits):
+def run_browser_scenario(page, name, test_file_path, expected_warning, expected_checkboxes, expected_counts, expected_deposits, prepare_data=None):
     """Run one browser upload/submit scenario"""
     print(f"Running scenario: {name}")
     reset_mongodb_data()
+    if prepare_data is not None:
+        prepare_data()
     reset_api_requests()
 
     print("Navigating to /...")
@@ -318,6 +326,21 @@ def run_browser_scenario(page, name, test_file_path, expected_warning, expected_
     verify_api_call_counts(expected_counts)
     verify_deposits_state(expected_deposits)
     print(f"✅ Scenario completed successfully: {name}")
+
+def change_deposits_member_number():
+    """Simulate a deposits record whose source-system member number is stale."""
+    client = MongoClient('mongodb://localhost:27017/')
+    try:
+        client['wcfc-deposits'].members.update_one(
+            {'email_normalized': 'test@example.com'},
+            {'$set': {
+                'member_number': '9991',
+                'number_normalized': '9991',
+                'inactive': True,
+            }},
+        )
+    finally:
+        client.close()
 
 def run_update_test():
     """Run the complete update flow test"""
@@ -450,6 +473,41 @@ def run_update_test():
                         'number_normalized': '1004'
                     }
                 }
+            )
+
+            run_browser_scenario(
+                page,
+                "changed deposits member number preserves the existing record",
+                "/app/test-data/myfbo-report.xls",
+                expected_warning=False,
+                expected_checkboxes=7,
+                expected_counts={
+                    'groupsio_add': 1,
+                    'groupsio_remove': 1,
+                    'manuals_add': 1,
+                    'manuals_remove': 1
+                },
+                expected_deposits={
+                    '1001': {
+                        'inactive': False,
+                        'full_name_normalized': 'test user',
+                        'email_normalized': 'test@example.com',
+                        'number_normalized': '1001'
+                    },
+                    '1002': {
+                        'inactive': False,
+                        'full_name_normalized': 'john pilot',
+                        'email_normalized': 'john.pilot@example.com',
+                        'number_normalized': '1002'
+                    },
+                    '1004': {
+                        'inactive': True,
+                        'full_name_normalized': 'bob smith',
+                        'email_normalized': 'bob.smith@example.com',
+                        'number_normalized': '1004'
+                    }
+                },
+                prepare_data=change_deposits_member_number,
             )
 
             print("✅ Update flow completed successfully!")

@@ -11,6 +11,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -51,21 +52,40 @@ public class DepositsService implements AutoCloseable {
     Map<String, DepositsMember> csvMembers = depositsMembersByNumber(updateList);
     Map<String, DepositsMember> savedMembers = depositsMembersByNumber();
     removeIgnoredMembers(savedMembers, ignoredMemberIds);
+    Map<String, DepositsMember> savedMembersByEmail = depositsMembersByEmail(
+      savedMembers
+    );
+    Set<String> matchedSavedMemberNumbers = new HashSet<String>();
 
     DepositsDiff diff = new DepositsDiff();
     for (Map.Entry<String, DepositsMember> entry : csvMembers.entrySet()) {
       DepositsMember newMember = entry.getValue();
       DepositsMember oldMember = savedMembers.get(entry.getKey());
       if (oldMember == null) {
+        DepositsMember emailMatch = savedMembersByEmail.get(
+          newMember.getEmailNormalized()
+        );
+        if (
+          emailMatch != null &&
+          !matchedSavedMemberNumbers.contains(emailMatch.getNumberNormalized())
+        ) {
+          oldMember = emailMatch;
+        }
+      }
+
+      if (oldMember == null) {
         diff.getAdded().add(newMember);
-      } else if (!oldMember.matches(newMember)) {
-        diff.getChanged().add(new DepositsChange(oldMember, newMember));
+      } else {
+        matchedSavedMemberNumbers.add(oldMember.getNumberNormalized());
+        if (!oldMember.matches(newMember)) {
+          diff.getChanged().add(new DepositsChange(oldMember, newMember));
+        }
       }
     }
 
     for (Map.Entry<String, DepositsMember> entry : savedMembers.entrySet()) {
       if (
-        !csvMembers.containsKey(entry.getKey()) &&
+        !matchedSavedMemberNumbers.contains(entry.getKey()) &&
         !Boolean.TRUE.equals(entry.getValue().getInactive())
       ) {
         diff.getRemoved().add(entry.getValue());
@@ -84,6 +104,19 @@ public class DepositsService implements AutoCloseable {
         DepositsMember.normalizeMemberNumber(String.valueOf(it.next()))
       );
     }
+  }
+
+  private Map<String, DepositsMember> depositsMembersByEmail(
+    Map<String, DepositsMember> membersByNumber
+  ) {
+    Map<String, DepositsMember> mapped = new HashMap<String, DepositsMember>();
+    for (DepositsMember member : membersByNumber.values()) {
+      String email = member.getEmailNormalized();
+      if (email != null && !email.isBlank()) {
+        mapped.put(email, member);
+      }
+    }
+    return mapped;
   }
 
   public void addMultipleMembers(List<DepositsMember> added) {

@@ -181,10 +181,19 @@
 			body: json
 		});
 		if (!response.ok) {
-			console.log('Update of membership failed');
-			const json = await response.json();
+			const body = await response.text();
+			let message = `Update of membership failed (${response.status})`;
+			if (body) {
+				try {
+					const json = JSON.parse(body);
+					message = json.message ?? message;
+				} catch {
+					console.error(message, body);
+				}
+			}
+			notifier.danger(message);
 		} else {
-			const json = await response.json();
+			await response.json();
 			cancel();
 		}
 	};

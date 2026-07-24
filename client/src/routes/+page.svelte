@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Textfield from '@smui/textfield';
 	import Button from '@smui/button';
@@ -78,6 +78,8 @@
 	let addedRows: SummaryRow[] = [];
 	let removedRows: SummaryRow[] = [];
 	let changedRows: SummaryRow[] = [];
+	let isProcessing = false;
+	let isSubmitting = false;
 
 	onMount(async () => {});
 
@@ -87,38 +89,49 @@
 
 	// Note: the change and input events fire before the `files` prop is updated.
 	$: if (files != null && files.length) {
-		uploadMembersFile(files[0]);
+		const file = files[0];
+		files = null;
+		uploadMembersFile(file);
 	}
 
 	const uploadMembersFile = async (file: File) => {
-		if (files == null) {
-			console.log('All values must be provided.');
-		} else if (isMembersFile(file)) {
+		if (isMembersFile(file)) {
+			isProcessing = true;
+			await tick();
 			const formData = new FormData();
 			formData.append('members', file);
-			const response = await fetch('/upload', {
-				method: 'post',
-				body: formData
-			});
-			if (response.ok) {
-				notifier.success('File uploaded successfully');
-				files = null;
-				const json: UploadResponse = await response.json();
-				added = json.added.map((item) => ({ ...item, checked: true }));
-				removed = json.removed.map((item) => ({ ...item, checked: true }));
-				changed = (json.changed ?? []).map((item) => ({ ...item, checked: true }));
-				depositsAdded = (json.depositsAdded ?? []).map((item) => ({ ...item, checked: true }));
-				depositsRemoved = (json.depositsRemoved ?? []).map((item) => ({
-					...item,
-					checked: true
-				}));
-				depositsChanged = (json.depositsChanged ?? []).map((item) => ({
-					...item,
-					checked: true
-				}));
-				buildSummaryRows();
-			} else {
-				notifier.warning('File failed to upload (not a Flight Circle CSV?)');
+			try {
+				const response = await fetch('/upload', {
+					method: 'post',
+					body: formData
+				});
+				if (response.ok) {
+					notifier.success('File uploaded successfully');
+					const json: UploadResponse = await response.json();
+					added = json.added.map((item) => ({ ...item, checked: true }));
+					removed = json.removed.map((item) => ({ ...item, checked: true }));
+					changed = (json.changed ?? []).map((item) => ({ ...item, checked: true }));
+					depositsAdded = (json.depositsAdded ?? []).map((item) => ({
+						...item,
+						checked: true
+					}));
+					depositsRemoved = (json.depositsRemoved ?? []).map((item) => ({
+						...item,
+						checked: true
+					}));
+					depositsChanged = (json.depositsChanged ?? []).map((item) => ({
+						...item,
+						checked: true
+					}));
+					buildSummaryRows();
+				} else {
+					notifier.warning('File failed to upload (not a Flight Circle CSV?)');
+				}
+			} catch (error) {
+				console.error('File upload failed', error);
+				notifier.danger('File failed to upload');
+			} finally {
+				isProcessing = false;
 			}
 		} else {
 			notifier.danger('File must have a CSV extension!');
@@ -149,8 +162,28 @@
 		files = null;
 	};
 
+	const applied = (action: SummaryAction<unknown> | undefined) =>
+		Boolean(action?.checked && !action.warning);
+
+	const remainingRows = (rows: SummaryRow[]) =>
+		rows
+			.map((row) => ({
+				...row,
+				groups: applied(row.groups) ? undefined : row.groups,
+				manuals: applied(row.manuals) ? undefined : row.manuals,
+				deposits: applied(row.deposits) ? undefined : row.deposits
+			}))
+			.filter((row) => row.groups || row.manuals || row.deposits);
+
+	const showRemainingChanges = () => {
+		addedRows = remainingRows(addedRows);
+		removedRows = remainingRows(removedRows);
+		changedRows = remainingRows(changedRows);
+	};
+
 	const submit = async () => {
 		if (
+			isSubmitting ||
 			added == null ||
 			removed == null ||
 			changed == null ||
@@ -170,31 +203,39 @@
 
 		const json = JSON.stringify(buildUpdateRequest());
 
-		const response = await fetch('/update', {
-			method: 'post',
-			credentials: 'include',
-			headers: {
-				Accept: 'application/json',
-				'Content-Type': 'application/json'
-			},
-			//make sure to serialize your JSON body
-			body: json
-		});
-		if (!response.ok) {
-			const body = await response.text();
-			let message = `Update of membership failed (${response.status})`;
-			if (body) {
-				try {
-					const json = JSON.parse(body);
-					message = json.message ?? message;
-				} catch {
-					console.error(message, body);
+		isSubmitting = true;
+		try {
+			const response = await fetch('/update', {
+				method: 'post',
+				credentials: 'include',
+				headers: {
+					Accept: 'application/json',
+					'Content-Type': 'application/json'
+				},
+				body: json
+			});
+			if (!response.ok) {
+				const body = await response.text();
+				let message = `Update of membership failed (${response.status})`;
+				if (body) {
+					try {
+						const json = JSON.parse(body);
+						message = json.message ?? message;
+					} catch {
+						console.error(message, body);
+					}
 				}
+				notifier.danger(message);
+			} else {
+				await response.json();
+				showRemainingChanges();
+				notifier.success('Membership changes updated');
 			}
-			notifier.danger(message);
-		} else {
-			await response.json();
-			cancel();
+		} catch (error) {
+			console.error('Update of membership failed', error);
+			notifier.danger('Update of membership failed');
+		} finally {
+			isSubmitting = false;
 		}
 	};
 
@@ -312,7 +353,8 @@
 
 	const hasChanges = () => addedRows.length > 0 || removedRows.length > 0 || changedRows.length > 0;
 
-	const emailChangeFor = (row: SummaryRow) => row.manuals?.value as EmailChange | undefined;
+	const emailChangeFor = (row: SummaryRow) =>
+		(row.manuals?.value ?? row.groups?.value) as EmailChange | undefined;
 
 	const depositsChangeFor = (row: SummaryRow) => row.deposits?.value as DepositsChange | undefined;
 
@@ -332,14 +374,18 @@
 		];
 
 		if (emailChange) {
-			rows.push({
-				app: 'Groups.io',
-				value: memberSummary(emailChange.oldMember)
-			});
-			rows.push({
-				app: 'Manuals',
-				value: memberSummary(emailChange.oldMember)
-			});
+			if (row.groups) {
+				rows.push({
+					app: 'Groups.io',
+					value: memberSummary(emailChange.oldMember)
+				});
+			}
+			if (row.manuals) {
+				rows.push({
+					app: 'Manuals',
+					value: memberSummary(emailChange.oldMember)
+				});
+			}
 		}
 
 		if (depositsChange) {
@@ -353,12 +399,20 @@
 	};
 </script>
 
+<svelte:head>
+	<title>WCFC Membership Sync</title>
+</svelte:head>
+
 <NotificationDisplay />
 
-<div class="center margins">
-	<h3>WCFC Mailing List Update</h3>
+<header class="topbar">
+	<h1>WCFC Membership Sync</h1>
+</header>
 
-	{#if !added || !removed || !changed || !depositsAdded || !depositsRemoved || !depositsChanged}
+<main class="content">
+	{#if isProcessing}
+		<div class="prompt processing" role="status">Processing...</div>
+	{:else if !added || !removed || !changed || !depositsAdded || !depositsRemoved || !depositsChanged}
 		<div class="prompt">Select Flight Circle Members File</div>
 
 		<div class="hide-file-ui">
@@ -514,12 +568,22 @@
 				</div>
 
 				<div class="button">
-					<Button class="button" variant="outlined" onclick={() => submit()}>
-						<Label>Submit Changes</Label>
+					<Button
+						class="button"
+						variant="outlined"
+						disabled={isSubmitting}
+						onclick={() => submit()}
+					>
+						<Label>{isSubmitting ? 'Updating...' : 'Submit Changes'}</Label>
 					</Button>
 				</div>
 				<div class="button">
-					<Button class="button" variant="outlined" onclick={() => cancel()}>
+					<Button
+						class="button"
+						variant="outlined"
+						disabled={isSubmitting}
+						onclick={() => cancel()}
+					>
 						<Label>Cancel</Label>
 					</Button>
 				</div>
@@ -533,12 +597,32 @@
 			{/if}
 		</div>
 	{/if}
-</div>
+</main>
 
 <style>
-	.margins {
-		margin: 20px;
-		margin-left: 100px;
+	:global(body) {
+		background: #f3f6f8;
+		color: #142438;
+		margin: 0;
+	}
+	.topbar {
+		align-items: center;
+		background: #d8e9f1;
+		border-bottom: 3px solid #6f9ab4;
+		box-shadow: 0 2px 8px rgba(20, 36, 56, 0.12);
+		display: flex;
+		min-height: 68px;
+		padding: 0 48px;
+	}
+	.topbar h1 {
+		font-size: 24px;
+		font-weight: 500;
+		margin: 0;
+	}
+	.content {
+		margin: 30px auto;
+		max-width: 1180px;
+		padding: 0 28px;
 	}
 	.changes {
 		margin-top: 20px;
@@ -596,6 +680,9 @@
 	.prompt {
 		font-size: 20px;
 	}
+	.processing {
+		color: #455867;
+	}
 	.button {
 		text-align: left;
 		margin-top: 10px;
@@ -610,5 +697,17 @@
 	}
 	.hide-file-ui :global(:not(.mdc-text-field--label-floating) input[type='file']) {
 		color: transparent;
+	}
+	@media (max-width: 640px) {
+		.topbar {
+			padding: 0 20px;
+		}
+		.topbar h1 {
+			font-size: 21px;
+		}
+		.content {
+			margin-top: 24px;
+			padding: 0 16px;
+		}
 	}
 </style>

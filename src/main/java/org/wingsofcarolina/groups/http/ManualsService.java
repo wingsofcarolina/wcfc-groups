@@ -133,9 +133,8 @@ public class ManualsService {
         throw new APIException(error.message());
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new APIException("Failed to add Manuals member", e);
     }
-    return false;
   }
 
   public boolean removeMember(Member member) throws APIException {
@@ -151,8 +150,7 @@ public class ManualsService {
         throw new APIException(error.message());
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new APIException("Failed to remove Manuals member", e);
     }
-    return false;
   }
 }

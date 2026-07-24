@@ -239,6 +239,21 @@ def verify_api_call_counts(expected_counts):
         if actual != expected:
             raise Exception(f"Expected exactly {expected} {key} calls, found {actual}")
 
+def verify_manuals_email_change(old_email, new_email):
+    """Verify that Manuals received the old address for removal and the new one for addition."""
+    api_requests = get_api_requests()
+    removed = json.loads(api_requests['manuals_remove'][0]['request']['body'])
+    added = json.loads(api_requests['manuals_add'][0]['request']['body'])
+
+    if removed.get('email') != old_email:
+        raise Exception(
+            f"Expected Manuals removal for {old_email}, found {removed.get('email')}"
+        )
+    if added.get('email') != new_email:
+        raise Exception(
+            f"Expected Manuals addition for {new_email}, found {added.get('email')}"
+        )
+
 def verify_deposits_state(expected_deposits):
     """Verify wcfc-deposits member state after submit"""
     client = MongoClient('mongodb://localhost:27017/')
@@ -277,7 +292,20 @@ def verify_deposits_state(expected_deposits):
     finally:
         client.close()
 
-def run_browser_scenario(page, name, test_file_path, expected_warning, expected_checkboxes, expected_counts, expected_deposits, prepare_data=None):
+def run_browser_scenario(
+    page,
+    name,
+    test_file_path,
+    expected_warning,
+    expected_checkboxes,
+    expected_counts,
+    expected_deposits,
+    prepare_data=None,
+    unchecked_checkbox_indices=(),
+    expected_remaining_checkboxes=0,
+    expected_remaining_warning=False,
+    expected_manuals_email_change=None,
+):
     """Run one browser upload/submit scenario"""
     print(f"Running scenario: {name}")
     reset_mongodb_data()
@@ -294,6 +322,7 @@ def run_browser_scenario(page, name, test_file_path, expected_warning, expected_
     file_input = page.locator('input[type="file"]')
     expect(file_input).to_be_visible(timeout=10000)
     file_input.set_input_files(test_file_path)
+    expect(page.get_by_text("Processing...", exact=True)).to_be_visible(timeout=1000)
 
     print("Waiting for results page...")
     wait_for_page_ready(page)
@@ -315,7 +344,10 @@ def run_browser_scenario(page, name, test_file_path, expected_warning, expected_
     for index in range(expected_checkboxes):
         checkbox = checkboxes.nth(index)
         expect(checkbox).to_be_visible(timeout=10000)
-        checkbox.check()
+        if index in unchecked_checkbox_indices:
+            checkbox.uncheck()
+        else:
+            checkbox.check()
 
     submit_button = page.locator('button:has-text("Submit"), button:has-text("Apply"), input[type="submit"]').first
     expect(submit_button).to_be_visible(timeout=5000)
@@ -324,7 +356,19 @@ def run_browser_scenario(page, name, test_file_path, expected_warning, expected_
     wait_for_page_ready(page)
 
     verify_api_call_counts(expected_counts)
+    if expected_manuals_email_change is not None:
+        verify_manuals_email_change(*expected_manuals_email_change)
     verify_deposits_state(expected_deposits)
+
+    remaining_checkboxes = page.locator('input[type="checkbox"]')
+    expect(remaining_checkboxes).to_have_count(expected_remaining_checkboxes)
+    if expected_remaining_warning:
+        expect(page.locator('.manual-warning')).to_be_visible()
+        expect(page.get_by_text("Membership Changes", exact=True)).to_be_visible()
+        expect(page.locator('.changed-app')).to_have_text(['Flight Circle', 'Groups.io'])
+    else:
+        expect(page.locator('.manual-warning')).to_have_count(0)
+
     print(f"✅ Scenario completed successfully: {name}")
 
 def change_deposits_member_number():
@@ -432,19 +476,15 @@ def run_update_test():
                         'email_normalized': 'test@example.com',
                         'number_normalized': '1001'
                     },
-                    '1002': {
-                        'inactive': False,
-                        'full_name_normalized': 'john pilot',
-                        'email_normalized': 'john.pilot@example.com',
-                        'number_normalized': '1002'
-                    },
                     '1004': {
                         'inactive': False,
                         'full_name_normalized': 'bob smith',
                         'email_normalized': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
-                }
+                },
+                unchecked_checkbox_indices=(2,),
+                expected_remaining_checkboxes=1,
             )
 
             run_browser_scenario(
@@ -472,7 +512,12 @@ def run_update_test():
                         'email_normalized': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
-                }
+                },
+                expected_remaining_warning=True,
+                expected_manuals_email_change=(
+                    'test@example.com',
+                    'test.changed@example.com',
+                ),
             )
 
             run_browser_scenario(

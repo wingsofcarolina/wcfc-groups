@@ -114,9 +114,8 @@ public class GroupsIoService {
         throw new APIException(error.message());
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new APIException("Failed to add Groups.io member", e);
     }
-    return false;
   }
 
   public boolean removeMember(String emails) throws APIException {
@@ -132,8 +131,7 @@ public class GroupsIoService {
         throw new APIException(error.message());
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      throw new APIException("Failed to remove Groups.io member", e);
     }
-    return false;
   }
 }

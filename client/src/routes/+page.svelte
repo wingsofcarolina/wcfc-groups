@@ -411,7 +411,10 @@
 
 <main class="content">
 	{#if isProcessing}
-		<div class="prompt processing" role="status">Processing...</div>
+		<div class="prompt processing" role="status">
+			<span class="processing-spinner" aria-hidden="true"></span>
+			<span>Processing...</span>
+		</div>
 	{:else if !added || !removed || !changed || !depositsAdded || !depositsRemoved || !depositsChanged}
 		<div class="prompt">Select Flight Circle Members File</div>
 
@@ -681,7 +684,18 @@
 		font-size: 20px;
 	}
 	.processing {
+		align-items: center;
 		color: #455867;
+		display: flex;
+		gap: 12px;
+	}
+	.processing-spinner {
+		animation: processing-spin 0.8s linear infinite;
+		border: 3px solid #b7c5d0;
+		border-radius: 50%;
+		border-top-color: #155e85;
+		height: 22px;
+		width: 22px;
 	}
 	.button {
 		text-align: left;
@@ -708,6 +722,18 @@
 		.content {
 			margin-top: 24px;
 			padding: 0 16px;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.processing-spinner {
+			animation: none;
+			border-top-color: #b7c5d0;
+			box-shadow: inset 7px 0 0 #155e85;
+		}
+	}
+	@keyframes processing-spin {
+		to {
+			transform: rotate(360deg);
 		}
 	}
 </style>

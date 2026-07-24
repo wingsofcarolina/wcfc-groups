@@ -63,7 +63,7 @@ public class DepositsService implements AutoCloseable {
       DepositsMember oldMember = savedMembers.get(entry.getKey());
       if (oldMember == null) {
         DepositsMember emailMatch = savedMembersByEmail.get(
-          newMember.getEmailNormalized()
+          DepositsMember.normalizeEmail(newMember.getEmail())
         );
         if (
           emailMatch != null &&
@@ -111,7 +111,7 @@ public class DepositsService implements AutoCloseable {
   ) {
     Map<String, DepositsMember> mapped = new HashMap<String, DepositsMember>();
     for (DepositsMember member : membersByNumber.values()) {
-      String email = member.getEmailNormalized();
+      String email = DepositsMember.normalizeEmail(member.getEmail());
       if (email != null && !email.isBlank()) {
         mapped.put(email, member);
       }
@@ -177,7 +177,6 @@ public class DepositsService implements AutoCloseable {
         set("email", member.getEmail()),
         set("member_number", member.getMemberNumber()),
         set("full_name_normalized", member.getFullNameNormalized()),
-        set("email_normalized", member.getEmailNormalized()),
         set("number_normalized", member.getNumberNormalized()),
         set("inactive", Boolean.TRUE.equals(member.getInactive()))
       )

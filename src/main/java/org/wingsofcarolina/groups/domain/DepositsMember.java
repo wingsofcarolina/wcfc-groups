@@ -18,7 +18,6 @@ public class DepositsMember {
   private String email;
   private String memberNumber;
   private String fullNameNormalized;
-  private String emailNormalized;
   private String numberNormalized;
   private Boolean inactive;
   private Instant createdAt;
@@ -49,7 +48,6 @@ public class DepositsMember {
     member.setFullNameNormalized(
       normalizeFullName(member.getFirstName(), member.getLastName())
     );
-    member.setEmailNormalized(normalizeEmail(member.getEmail()));
     member.setNumberNormalized(normalizeMemberNumber(member.getMemberNumber()));
     member.setInactive(Boolean.TRUE.equals(document.getBoolean("inactive")));
     Date createdAt = document.getDate("created_at");
@@ -65,7 +63,6 @@ public class DepositsMember {
     email = trim(email);
     memberNumber = trim(memberNumber);
     fullNameNormalized = normalizeFullName(firstName, lastName);
-    emailNormalized = normalizeEmail(email);
     numberNormalized = normalizeMemberNumber(memberNumber);
     inactive = Boolean.TRUE.equals(inactive);
     createdAt = Instant.now();
@@ -78,7 +75,6 @@ public class DepositsMember {
       .append("email", email)
       .append("member_number", memberNumber)
       .append("full_name_normalized", fullNameNormalized)
-      .append("email_normalized", emailNormalized)
       .append("number_normalized", numberNormalized)
       .append("inactive", Boolean.TRUE.equals(inactive))
       .append("created_at", Date.from(createdAt));
@@ -89,7 +85,7 @@ public class DepositsMember {
       equals(firstName, other.firstName) &&
       equals(lastName, other.lastName) &&
       equals(fullNameNormalized, other.fullNameNormalized) &&
-      equals(emailNormalized, other.emailNormalized) &&
+      equals(email, other.email) &&
       equals(numberNormalized, other.numberNormalized) &&
       Boolean.TRUE.equals(inactive) == Boolean.TRUE.equals(other.inactive)
     );
@@ -174,14 +170,6 @@ public class DepositsMember {
 
   public void setFullNameNormalized(String fullNameNormalized) {
     this.fullNameNormalized = fullNameNormalized;
-  }
-
-  public String getEmailNormalized() {
-    return emailNormalized;
-  }
-
-  public void setEmailNormalized(String emailNormalized) {
-    this.emailNormalized = emailNormalized;
   }
 
   public String getNumberNormalized() {

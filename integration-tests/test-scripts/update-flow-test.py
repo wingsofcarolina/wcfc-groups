@@ -264,7 +264,12 @@ def verify_deposits_state(expected_deposits):
         print("Deposits member summary:")
         for member in sorted(members, key=lambda item: item['number_normalized']):
             state = "inactive" if member.get('inactive') else "active"
-            print(f"  #{member['number_normalized']}: {member['email_normalized']} ({state})")
+            print(f"  #{member['number_normalized']}: {member['email']} ({state})")
+            if 'email_normalized' in member:
+                raise Exception(
+                    f"Expected deposits member #{member['number_normalized']} "
+                    "to omit email_normalized"
+                )
 
         if set(by_number) != set(expected_deposits):
             raise Exception(
@@ -283,7 +288,7 @@ def verify_deposits_state(expected_deposits):
                     f"found {member.get('inactive')}"
                 )
 
-            for field in ('full_name_normalized', 'email_normalized', 'number_normalized'):
+            for field in ('full_name_normalized', 'email', 'number_normalized'):
                 if field in expected and member.get(field) != expected[field]:
                     raise Exception(
                         f"Expected deposits member #{number} {field}={expected[field]}, "
@@ -372,14 +377,15 @@ def run_browser_scenario(
     print(f"✅ Scenario completed successfully: {name}")
 
 def change_deposits_member_number():
-    """Simulate a deposits record whose source-system member number is stale."""
+    """Simulate stale numbering and case-only email presentation differences."""
     client = MongoClient('mongodb://localhost:27017/')
     try:
         client['wcfc-deposits'].members.update_one(
-            {'email_normalized': 'test@example.com'},
+            {'email': 'test@example.com'},
             {'$set': {
                 'member_number': '9991',
                 'number_normalized': '9991',
+                'email': 'Test@Example.com',
                 'inactive': True,
             }},
         )
@@ -439,19 +445,19 @@ def run_update_test():
                     '1001': {
                         'inactive': False,
                         'full_name_normalized': 'test user',
-                        'email_normalized': 'test@example.com',
+                        'email': 'test@example.com',
                         'number_normalized': '1001'
                     },
                     '1002': {
                         'inactive': False,
                         'full_name_normalized': 'john pilot',
-                        'email_normalized': 'john.pilot@example.com',
+                        'email': 'john.pilot@example.com',
                         'number_normalized': '1002'
                     },
                     '1004': {
                         'inactive': True,
                         'full_name_normalized': 'bob smith',
-                        'email_normalized': 'bob.smith@example.com',
+                        'email': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
                 }
@@ -473,13 +479,13 @@ def run_update_test():
                     '1001': {
                         'inactive': False,
                         'full_name_normalized': 'test user',
-                        'email_normalized': 'test@example.com',
+                        'email': 'test@example.com',
                         'number_normalized': '1001'
                     },
                     '1004': {
                         'inactive': False,
                         'full_name_normalized': 'bob smith',
-                        'email_normalized': 'bob.smith@example.com',
+                        'email': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
                 },
@@ -503,13 +509,13 @@ def run_update_test():
                     '1001': {
                         'inactive': False,
                         'full_name_normalized': 'test user',
-                        'email_normalized': 'test.changed@example.com',
+                        'email': 'test.changed@example.com',
                         'number_normalized': '1001'
                     },
                     '1004': {
                         'inactive': False,
                         'full_name_normalized': 'bob smith',
-                        'email_normalized': 'bob.smith@example.com',
+                        'email': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
                 },
@@ -536,19 +542,19 @@ def run_update_test():
                     '1001': {
                         'inactive': False,
                         'full_name_normalized': 'test user',
-                        'email_normalized': 'test@example.com',
+                        'email': 'test@example.com',
                         'number_normalized': '1001'
                     },
                     '1002': {
                         'inactive': False,
                         'full_name_normalized': 'john pilot',
-                        'email_normalized': 'john.pilot@example.com',
+                        'email': 'john.pilot@example.com',
                         'number_normalized': '1002'
                     },
                     '1004': {
                         'inactive': True,
                         'full_name_normalized': 'bob smith',
-                        'email_normalized': 'bob.smith@example.com',
+                        'email': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
                 },

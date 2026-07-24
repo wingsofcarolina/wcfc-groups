@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 try:
     from pymongo import MongoClient
+    from pymongo.collation import Collation
 except ImportError:
     print("PyMongo not available. Please install it with: pip install pymongo")
     sys.exit(1)
@@ -71,7 +72,6 @@ def setup_mongodb_data():
             "email": "test@example.com",
             "member_number": "1001",
             "full_name_normalized": "test user",
-            "email_normalized": "test@example.com",
             "number_normalized": "1001",
             "inactive": False,
             "created_at": datetime.now(timezone.utc),
@@ -82,7 +82,6 @@ def setup_mongodb_data():
             "email": "bob.smith@example.com",
             "member_number": "1004",
             "full_name_normalized": "bob smith",
-            "email_normalized": "bob.smith@example.com",
             "number_normalized": "1004",
             "inactive": False,
             "created_at": datetime.now(timezone.utc),
@@ -90,7 +89,12 @@ def setup_mongodb_data():
     ]
 
     deposits_db.members.insert_many(deposits_members)
-    deposits_db.members.create_index('email_normalized', unique=True)
+    deposits_db.members.create_index(
+        'email',
+        name='email_case_insensitive_unique',
+        unique=True,
+        collation=Collation(locale='en', strength=2),
+    )
     deposits_db.members.create_index('number_normalized', unique=True)
     deposits_db.members.create_index('full_name_normalized', unique=True)
     print(f"Inserted {len(deposits_members)} deposits member records")

@@ -22,7 +22,6 @@
 		email: string;
 		memberNumber: string;
 		fullNameNormalized: string;
-		emailNormalized: string;
 		numberNormalized: string;
 		inactive: boolean;
 		checked: boolean;

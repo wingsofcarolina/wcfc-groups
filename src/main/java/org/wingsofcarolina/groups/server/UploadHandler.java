@@ -7,8 +7,6 @@ import io.undertow.server.handlers.form.FormData;
 import io.undertow.server.handlers.form.FormData.FileItem;
 import io.undertow.server.handlers.form.FormData.FormValue;
 import io.undertow.server.handlers.form.FormDataParser;
-import io.undertow.util.Headers;
-import io.undertow.util.StatusCodes;
 import java.io.InputStream;
 import java.util.*;
 import org.slf4j.Logger;
@@ -16,11 +14,10 @@ import org.slf4j.LoggerFactory;
 import org.wingsofcarolina.groups.MemberListCSV;
 import org.wingsofcarolina.groups.MemberListXLS;
 import org.wingsofcarolina.groups.MemberReader;
-import org.wingsofcarolina.groups.domain.MemberDiff;
+import org.wingsofcarolina.groups.domain.EmailChange;
+import org.wingsofcarolina.groups.domain.Member;
 import org.wingsofcarolina.groups.http.DepositsService;
 import org.wingsofcarolina.groups.http.DepositsService.DepositsDiff;
-import org.wingsofcarolina.groups.http.GroupsIoService;
-import org.wingsofcarolina.groups.http.ManualsDatabaseService;
 
 public class UploadHandler implements HttpHandler {
 
@@ -30,9 +27,11 @@ public class UploadHandler implements HttpHandler {
 
   @Override
   public void handleRequest(HttpServerExchange hse) throws Exception {
-    MemberDiff groupsDiff = new MemberDiff();
-    MemberDiff manualsDiff = new MemberDiff();
+    ArrayList<Member> added = new ArrayList<Member>();
+    ArrayList<Member> removed = new ArrayList<Member>();
+    ArrayList<EmailChange> changed = new ArrayList<EmailChange>();
     DepositsDiff depositsDiff = new DepositsDiff();
+    Iterator<Map.Entry<Integer, Member>> iterator;
 
     String uri = hse.getRequestURI();
     String method = hse.getRequestMethod().toString();
@@ -45,41 +44,77 @@ public class UploadHandler implements HttpHandler {
         FormValue upload = members.getFirst();
         FileItem first = upload.getFileItem();
         if (first != null) {
-          try (InputStream is = first.getInputStream()) {
+          InputStream is = first.getInputStream();
+          try {
             MemberReader updateList = readMemberList(is, upload.getFileName());
+            MemberListXLS savedList = new MemberListXLS(Member.getAll());
+
+            // First, remove all waitlist and cruft entries
+            boolean found = false;
             Set<Integer> ignoredForSyncMemberIds = updateList.ignoredForSyncMemberIds();
-            List<org.wingsofcarolina.groups.domain.Member> excludedMembers = updateList.excludedFromSyncMembers();
+            savedList.removeMemberIds(ignoredForSyncMemberIds);
+            savedList.clean();
             updateList.clean();
 
-            GroupsIoService groupsIoService = configuredGroupsIoService();
-            groupsDiff = groupsIoService.diff(updateList, excludedMembers);
-            try (
-              ManualsDatabaseService manualsService = new ManualsDatabaseService()
-                .initialize();
-              DepositsService depositsService = new DepositsService().initialize()
-            ) {
-              manualsDiff = manualsService.diff(updateList, ignoredForSyncMemberIds);
+            // Look for any new members
+            found = false;
+            logger.info("Members to be added : ");
+            logger.info("================================");
+            iterator = updateList.members().entrySet().iterator();
+            while (iterator.hasNext()) {
+              Map.Entry<Integer, Member> entry = iterator.next();
+              Member member = entry.getValue();
+              Member savedMember = savedList.members().get(member.getId());
+              if (savedMember == null) {
+                logger.info(member.output());
+                added.add(member);
+                found = true;
+              } else if (emailChanged(savedMember, member)) {
+                logger.info(
+                  "{} email changed from {} to {}",
+                  member.getName(),
+                  savedMember.getEmail(),
+                  member.getEmail()
+                );
+                changed.add(new EmailChange(savedMember, member));
+              }
+            }
+            if (!found) logger.info("No new members added.");
+
+            // Look for any removed members
+            found = false;
+            logger.info("Members to be removed : ");
+            logger.info("================================");
+            iterator = savedList.members().entrySet().iterator();
+            while (iterator.hasNext()) {
+              Map.Entry<Integer, Member> entry = iterator.next();
+              Member member = entry.getValue();
+              if (!updateList.hasMember(member)) {
+                logger.info(member.output());
+                removed.add(member);
+                found = true;
+              }
+            }
+            if (!found) logger.info("No members removed.");
+
+            try (DepositsService depositsService = new DepositsService().initialize()) {
               depositsDiff = depositsService.diff(updateList, ignoredForSyncMemberIds);
             }
           } catch (Exception ex) {
-            logger.error("Membership comparison failed", ex);
-            sendError(hse, ex);
-            return;
+            logger.info(ex.getMessage());
+            ex.printStackTrace();
           }
 
           Map<String, Object> response = new HashMap<String, Object>();
-          response.put("groupsRemoved", groupsDiff.getRemoved());
-          response.put("groupsAdded", groupsDiff.getAdded());
-          response.put("groupsChanged", groupsDiff.getChanged());
-          response.put("manualsRemoved", manualsDiff.getRemoved());
-          response.put("manualsAdded", manualsDiff.getAdded());
-          response.put("manualsChanged", manualsDiff.getChanged());
+          //				    response.put("file", basename);
+          response.put("removed", removed);
+          response.put("added", added);
+          response.put("changed", changed);
           response.put("depositsRemoved", depositsDiff.getRemoved());
           response.put("depositsAdded", depositsDiff.getAdded());
           response.put("depositsChanged", depositsDiff.getChanged());
           String json = mapper.writeValueAsString(response);
 
-          hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
           hse.getResponseSender().send(json);
           return;
         }
@@ -88,14 +123,9 @@ public class UploadHandler implements HttpHandler {
     hse.getResponseSender().send("Upload attempt failed");
   }
 
-  private GroupsIoService configuredGroupsIoService() {
-    String apiKey = System.getenv("GROUPS_IO_API_KEY");
-    if (apiKey == null || apiKey.trim().isEmpty()) {
-      throw new IllegalStateException("GROUPS_IO_API_KEY is not configured");
-    }
-    GroupsIoService service = new GroupsIoService().initialize();
-    service.setApiKey(apiKey);
-    return service;
+  private boolean emailChanged(Member savedMember, Member updatedMember) {
+    return !normalizeEmail(savedMember.getEmail())
+      .equals(normalizeEmail(updatedMember.getEmail()));
   }
 
   private MemberReader readMemberList(InputStream is, String fileName) throws Exception {
@@ -105,20 +135,10 @@ public class UploadHandler implements HttpHandler {
     return new MemberListXLS(is);
   }
 
-  private void sendError(HttpServerExchange hse, Exception ex) throws Exception {
-    hse.setStatusCode(StatusCodes.INTERNAL_SERVER_ERROR);
-    hse.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-    hse
-      .getResponseSender()
-      .send(
-        mapper.writeValueAsString(
-          Map.of(
-            "code",
-            StatusCodes.INTERNAL_SERVER_ERROR,
-            "message",
-            ex.getMessage() == null ? "Membership comparison failed" : ex.getMessage()
-          )
-        )
-      );
+  private String normalizeEmail(String email) {
+    if (email == null) {
+      return "";
+    }
+    return email.trim().toLowerCase();
   }
 }

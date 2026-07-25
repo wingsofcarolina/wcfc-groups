@@ -3,6 +3,7 @@ package org.wingsofcarolina.groups.http;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Logger;
@@ -13,31 +14,46 @@ import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class GroupsIoService {
+public class ManualsService {
 
   private static final org.slf4j.Logger logger = LoggerFactory.getLogger(
-    GroupsIoService.class
+    ManualsService.class
   );
 
   static String BASE_URL = System.getProperty(
-    "groupsio.base.url",
-    "https://groups.io/api/v1/"
+    "manuals.base.url",
+    "https://manuals.wingsofcarolina.org/api/member/"
   );
 
-  private static GroupsIoService instance = null;
+  private static ManualsService instance = null;
 
   private Retrofit retrofit;
-  private GroupsIoAPI api;
-  private String apiKey = null;
-  private String group_id = "121229"; // Wings-of-Carolina, hopefully immutable
+  private ManualsAPI api;
+  private String WCFC_TOKEN;
 
-  public GroupsIoService() {}
+  public ManualsService() {
+    // Get WCFC_TOKEN from environment variable
+    WCFC_TOKEN = System.getenv("WCFC_TOKEN");
+    if (WCFC_TOKEN == null || WCFC_TOKEN.trim().isEmpty()) {
+      logger.error(
+        "WCFC_TOKEN environment variable is not set or is empty. Please set this environment variable before starting the application."
+      );
+      System.err.println(
+        "ERROR: WCFC_TOKEN environment variable is required but not set."
+      );
+      System.err.println(
+        "Please set the WCFC_TOKEN environment variable and restart the application."
+      );
+      System.exit(1);
+    }
+    logger.info("WCFC_TOKEN loaded from environment variable");
+  }
 
-  public static GroupsIoService instance() {
+  public static ManualsService instance() {
     return instance;
   }
 
-  public GroupsIoService initialize() {
+  public ManualsService initialize() {
     if (instance == null) {
       HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor(
         new Logger() {
@@ -49,6 +65,8 @@ public class GroupsIoService {
       );
       interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
       OkHttpClient client = new OkHttpClient.Builder()
+        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
         .addInterceptor(interceptor)
         .build();
 
@@ -59,28 +77,19 @@ public class GroupsIoService {
           .client(client)
           .build();
 
-      api = retrofit.create(GroupsIoAPI.class);
+      api = retrofit.create(ManualsAPI.class);
       instance = this;
     }
 
     return instance;
   }
 
-  public void setApiKey(String apiKey) {
-    logger.debug("Setting API key for authentication");
-    this.apiKey = apiKey;
-  }
-
-  private String getBearerToken() {
-    return "Bearer " + apiKey;
-  }
-
   public boolean addMultipleMembers(List<Member> members) throws APIException {
-    if (apiKey != null && members.size() > 0) {
+    if (members.size() > 0) {
       Iterator<Member> it = members.iterator();
       while (it.hasNext()) {
         Member member = it.next();
-        addMember(member.output());
+        addMember(member);
       }
       return true;
     } else {
@@ -89,11 +98,11 @@ public class GroupsIoService {
   }
 
   public boolean removeMultipleMembers(List<Member> members) throws APIException {
-    if (apiKey != null && members.size() > 0) {
+    if (members.size() > 0) {
       Iterator<Member> it = members.iterator();
       while (it.hasNext()) {
         Member member = it.next();
-        removeMember(member.getEmail());
+        removeMember(member);
       }
       return true;
     } else {
@@ -101,9 +110,9 @@ public class GroupsIoService {
     }
   }
 
-  public boolean addMember(String emails) throws APIException {
-    logger.info("Adding : {}", emails);
-    Call<Void> call = api.addMember(getBearerToken(), emails, group_id);
+  public boolean addMember(Member member) throws APIException {
+    logger.info("Adding : {}", member);
+    Call<Void> call = api.addMember(WCFC_TOKEN, member);
     try {
       Response<Void> response = call.execute();
       if (response.isSuccessful()) {
@@ -111,16 +120,26 @@ public class GroupsIoService {
       } else {
         APIError error = ErrorUtils.parseError(retrofit, response);
         logger.info("Error message -- " + error.message());
+
+        // If user already exists, treat it as success since the desired outcome is achieved
+        if (
+          error.message() != null &&
+          error.message().toLowerCase().contains("user already exists")
+        ) {
+          logger.info("User already exists, continuing processing as success");
+          return true;
+        }
+
         throw new APIException(error.message());
       }
     } catch (IOException e) {
-      throw new APIException("Failed to add Groups.io member", e);
+      throw new APIException("Failed to add Manuals member", e);
     }
   }
 
-  public boolean removeMember(String emails) throws APIException {
-    logger.info("Removing : {}", emails);
-    Call<Void> call = api.removeMember(getBearerToken(), group_id, emails);
+  public boolean removeMember(Member member) throws APIException {
+    logger.info("Removing : {}", member);
+    Call<Void> call = api.removeMember(WCFC_TOKEN, member);
     try {
       Response<Void> response = call.execute();
       if (response.isSuccessful()) {
@@ -131,7 +150,7 @@ public class GroupsIoService {
         throw new APIException(error.message());
       }
     } catch (IOException e) {
-      throw new APIException("Failed to remove Groups.io member", e);
+      throw new APIException("Failed to remove Manuals member", e);
     }
   }
 }

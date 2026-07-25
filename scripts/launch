@@ -14,7 +14,7 @@ else
   exit 1
 fi
 
-for SECRET in wcfc-apps-mongodb wcfc-apps-groups-io; do
+for SECRET in wcfc-apps-mongodb wcfc-apps-groups-io wcfc-apps-WCFC_TOKEN; do
   if ! ${CONTAINER_CMD} secret exists $SECRET; then
     echo "Please set up Podman secrets before running this pod"
     exit 1
@@ -27,5 +27,6 @@ ${CONTAINER_CMD} rm -f wcfc-groups
 ${CONTAINER_CMD} run -d --name wcfc-groups -p 9301:9301 \
   --secret=wcfc-apps-mongodb,type=env,target=MONGODB \
   --secret=wcfc-apps-groups-io,type=env,target=GROUPS_IO_API_KEY \
+  --secret=wcfc-apps-WCFC_TOKEN,type=env,target=WCFC_TOKEN \
   -v $(pwd)/log:/opt/app/log \
  $1

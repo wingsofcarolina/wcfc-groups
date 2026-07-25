@@ -35,6 +35,7 @@ for the Wings of Carolina Flying Club. The project consists of a Java backend wi
 - retrofit 3.0.0 (HTTP client)
 - opencsv 5.12.0 (CSV processing)
 - jsoup 1.21.2 (HTML parsing)
+- morphia-core 2.5.0 (MongoDB ODM)
 - mongodb-driver-sync 5.6.0 (MongoDB driver)
 - logback 1.5.18 (Logging)
 

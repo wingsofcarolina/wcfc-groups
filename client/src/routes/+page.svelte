@@ -7,7 +7,7 @@
 	import { NotificationDisplay, notifier } from '@beyonk/svelte-notifications';
 
 	type Member = {
-		id: number | null;
+		id: number;
 		firstName?: string;
 		lastName?: string;
 		name: string;
@@ -59,25 +59,18 @@
 	};
 
 	type UploadResponse = {
-		groupsAdded: Omit<Member, 'checked'>[];
-		groupsRemoved: Omit<Member, 'checked'>[];
-		groupsChanged: Omit<EmailChange, 'checked'>[];
-		manualsAdded: Omit<Member, 'checked'>[];
-		manualsRemoved: Omit<Member, 'checked'>[];
-		manualsChanged: Omit<EmailChange, 'checked'>[];
+		added: Omit<Member, 'checked'>[];
+		removed: Omit<Member, 'checked'>[];
+		changed: Omit<EmailChange, 'checked'>[];
 		depositsAdded: Omit<DepositsMember, 'checked'>[];
 		depositsRemoved: Omit<DepositsMember, 'checked'>[];
 		depositsChanged: DepositsChange[];
 	};
 
 	let files: FileList | null = null;
-	let selectedFile: File | null = null;
-	let groupsAdded: Member[] | null = null;
-	let groupsRemoved: Member[] | null = null;
-	let groupsChanged: EmailChange[] | null = null;
-	let manualsAdded: Member[] | null = null;
-	let manualsRemoved: Member[] | null = null;
-	let manualsChanged: EmailChange[] | null = null;
+	let added: Member[] | null = null;
+	let removed: Member[] | null = null;
+	let changed: EmailChange[] | null = null;
 	let depositsAdded: DepositsMember[] | null = null;
 	let depositsRemoved: DepositsMember[] | null = null;
 	let depositsChanged: DepositsChange[] | null = null;
@@ -97,13 +90,11 @@
 	$: if (files != null && files.length) {
 		const file = files[0];
 		files = null;
-		selectedFile = file;
-		uploadMembersFile(file, true);
+		uploadMembersFile(file);
 	}
 
-	const uploadMembersFile = async (file: File, showSuccess: boolean) => {
+	const uploadMembersFile = async (file: File) => {
 		if (isMembersFile(file)) {
-			clearResults();
 			isProcessing = true;
 			await tick();
 			const formData = new FormData();
@@ -114,25 +105,11 @@
 					body: formData
 				});
 				if (response.ok) {
-					if (showSuccess) {
-						notifier.success('File uploaded successfully');
-					}
+					notifier.success('File uploaded successfully');
 					const json: UploadResponse = await response.json();
-					groupsAdded = (json.groupsAdded ?? []).map((item) => ({ ...item, checked: true }));
-					groupsRemoved = (json.groupsRemoved ?? []).map((item) => ({ ...item, checked: true }));
-					groupsChanged = (json.groupsChanged ?? []).map((item) => ({
-						...item,
-						checked: false
-					}));
-					manualsAdded = (json.manualsAdded ?? []).map((item) => ({ ...item, checked: true }));
-					manualsRemoved = (json.manualsRemoved ?? []).map((item) => ({
-						...item,
-						checked: true
-					}));
-					manualsChanged = (json.manualsChanged ?? []).map((item) => ({
-						...item,
-						checked: true
-					}));
+					added = json.added.map((item) => ({ ...item, checked: true }));
+					removed = json.removed.map((item) => ({ ...item, checked: true }));
+					changed = (json.changed ?? []).map((item) => ({ ...item, checked: true }));
 					depositsAdded = (json.depositsAdded ?? []).map((item) => ({
 						...item,
 						checked: true
@@ -172,36 +149,43 @@
 	};
 
 	const cancel = async () => {
-		clearResults();
-		files = null;
-		selectedFile = null;
-	};
-
-	const clearResults = () => {
-		groupsAdded = null;
-		groupsRemoved = null;
-		groupsChanged = null;
-		manualsAdded = null;
-		manualsRemoved = null;
-		manualsChanged = null;
+		added = null;
+		removed = null;
+		changed = null;
 		depositsAdded = null;
 		depositsRemoved = null;
 		depositsChanged = null;
 		addedRows = [];
 		removedRows = [];
 		changedRows = [];
+		files = null;
+	};
+
+	const applied = (action: SummaryAction<unknown> | undefined) =>
+		Boolean(action?.checked && !action.warning);
+
+	const remainingRows = (rows: SummaryRow[]) =>
+		rows
+			.map((row) => ({
+				...row,
+				groups: applied(row.groups) ? undefined : row.groups,
+				manuals: applied(row.manuals) ? undefined : row.manuals,
+				deposits: applied(row.deposits) ? undefined : row.deposits
+			}))
+			.filter((row) => row.groups || row.manuals || row.deposits);
+
+	const showRemainingChanges = () => {
+		addedRows = remainingRows(addedRows);
+		removedRows = remainingRows(removedRows);
+		changedRows = remainingRows(changedRows);
 	};
 
 	const submit = async () => {
 		if (
 			isSubmitting ||
-			selectedFile == null ||
-			groupsAdded == null ||
-			groupsRemoved == null ||
-			groupsChanged == null ||
-			manualsAdded == null ||
-			manualsRemoved == null ||
-			manualsChanged == null ||
+			added == null ||
+			removed == null ||
+			changed == null ||
 			depositsAdded == null ||
 			depositsRemoved == null ||
 			depositsChanged == null
@@ -243,8 +227,8 @@
 				notifier.danger(message);
 			} else {
 				await response.json();
+				showRemainingChanges();
 				notifier.success('Membership changes updated');
-				await uploadMembersFile(selectedFile, false);
 			}
 		} catch (error) {
 			console.error('Update of membership failed', error);
@@ -263,23 +247,15 @@
 		`${depositsName(member)} <${member.email}> #${member.memberNumber}${member.inactive ? ' inactive' : ' active'}`;
 
 	const memberSummary = (member: Pick<Member, 'name' | 'email' | 'id'>) =>
-		`${member.name} <${member.email}>${member.id == null ? '' : ` #${member.id}`}`;
+		`${member.name} <${member.email}> #${member.id}`;
 
 	const memberTargetSummary = (member: Pick<Member, 'name' | 'email' | 'id'>) =>
-		memberSummary(member);
+		`${member.name} <${member.email}> #${member.id}`;
 
-	const memberKey = (member: Pick<Member, 'id' | 'email'>) =>
-		member.id == null
-			? `email:${normalizeEmail(member.email)}`
-			: `member:${normalizeMemberNumber(String(member.id))}`;
-
-	const emailKey = (member: Pick<Member | DepositsMember, 'email'>) =>
-		`email:${normalizeEmail(member.email)}`;
+	const memberKey = (member: Pick<Member, 'id'>) => normalizeMemberNumber(String(member.id));
 
 	const depositsKey = (member: Pick<DepositsMember, 'memberNumber'>) =>
-		`member:${normalizeMemberNumber(member.memberNumber)}`;
-
-	const normalizeEmail = (value: string) => value.trim().toLowerCase();
+		normalizeMemberNumber(member.memberNumber);
 
 	const normalizeMemberNumber = (value: string) => {
 		const trimmed = value.trim();
@@ -301,20 +277,14 @@
 	};
 
 	const buildMemberRows = (
-		groupsMembers: Member[],
-		manualsMembers: Member[],
+		members: Member[],
 		depositsMembers: DepositsMember[],
 		actionLabel: 'added' | 'removed'
 	) => {
 		const rows = new Map<string, SummaryRow>();
-		groupsMembers.forEach((member) => {
-			const key = actionLabel === 'removed' ? emailKey(member) : memberKey(member);
-			const row = ensureRow(rows, key, memberSummary(member));
+		members.forEach((member) => {
+			const row = ensureRow(rows, memberKey(member), memberSummary(member));
 			row.groups = { value: member, checked: member.checked };
-		});
-		manualsMembers.forEach((member) => {
-			const key = actionLabel === 'removed' ? emailKey(member) : memberKey(member);
-			const row = ensureRow(rows, key, memberSummary(member));
 			row.manuals = { value: member, checked: member.checked };
 		});
 		depositsMembers.forEach((member) => {
@@ -322,8 +292,7 @@
 				actionLabel === 'removed'
 					? depositsSummary(member)
 					: `${depositsName(member)} <${member.email}> #${member.memberNumber}`;
-			const key = actionLabel === 'removed' ? emailKey(member) : depositsKey(member);
-			const row = ensureRow(rows, key, label);
+			const row = ensureRow(rows, depositsKey(member), label);
 			row.deposits = { value: member, checked: member.checked };
 		});
 		return Array.from(rows.values()).sort((a, b) =>
@@ -333,20 +302,13 @@
 
 	const buildChangedRows = () => {
 		const rows = new Map<string, SummaryRow>();
-		(groupsChanged ?? []).forEach((emailChange) => {
+		(changed ?? []).forEach((emailChange) => {
 			const row = ensureRow(
 				rows,
 				memberKey(emailChange.newMember),
 				memberTargetSummary(emailChange.newMember)
 			);
 			row.groups = { value: emailChange, checked: false, warning: true };
-		});
-		(manualsChanged ?? []).forEach((emailChange) => {
-			const row = ensureRow(
-				rows,
-				memberKey(emailChange.newMember),
-				memberTargetSummary(emailChange.newMember)
-			);
 			row.manuals = { value: emailChange, checked: emailChange.checked };
 		});
 		(depositsChanged ?? []).forEach((depositsChange) => {
@@ -363,18 +325,8 @@
 	};
 
 	const buildSummaryRows = () => {
-		addedRows = buildMemberRows(
-			groupsAdded ?? [],
-			manualsAdded ?? [],
-			depositsAdded ?? [],
-			'added'
-		);
-		removedRows = buildMemberRows(
-			groupsRemoved ?? [],
-			manualsRemoved ?? [],
-			depositsRemoved ?? [],
-			'removed'
-		);
+		addedRows = buildMemberRows(added ?? [], depositsAdded ?? [], 'added');
+		removedRows = buildMemberRows(removed ?? [], depositsRemoved ?? [], 'removed');
 		changedRows = buildChangedRows();
 	};
 
@@ -462,7 +414,7 @@
 			<span class="processing-spinner" aria-hidden="true"></span>
 			<span>Processing...</span>
 		</div>
-	{:else if !groupsAdded || !groupsRemoved || !groupsChanged || !manualsAdded || !manualsRemoved || !manualsChanged || !depositsAdded || !depositsRemoved || !depositsChanged}
+	{:else if !added || !removed || !changed || !depositsAdded || !depositsRemoved || !depositsChanged}
 		<div class="prompt">Select Flight Circle Members File</div>
 
 		<div class="hide-file-ui">

@@ -69,9 +69,9 @@ done
 echo -e "Running Playwright update flow test..."
 python3 /app/test-scripts/update-flow-test.py
 
-# Export MongoDB data
+# Export the authoritative Manuals data used by the sync.
 echo -e "Exporting MongoDB data..."
-mongoexport -d wcfc-groups -c Members > /app/output/mongodb-members.json
+mongoexport -d wcfc-manuals -c Members > /app/output/mongodb-members.json
 
 # Check test results
 if [ $? -eq 0 ]; then

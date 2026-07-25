@@ -17,10 +17,9 @@ else
 fi
 
 echo -e "Running integration test in container..."
-export WCFC_TOKEN=$(openssl rand -base64 36)
 export GROUPS_IO_API_KEY=$(openssl rand -base64 36)
 # Set base URLs to point to WireMock for integration testing
-export JAVA_OPTS="-Dgroupsio.base.url=http://localhost:8080/api/v1/ -Dmanuals.base.url=http://localhost:8080/api/member/"
+export JAVA_OPTS="-Dgroupsio.base.url=http://localhost:8080/api/v1/"
 mkdir -p "$SCRIPT_DIR/output/log"
 
 podman run -it --rm -p 9301:9301 \
@@ -30,9 +29,7 @@ podman run -it --rm -p 9301:9301 \
     -v "$SCRIPT_DIR/output:/app/output" \
     -v "$SCRIPT_DIR/output/log:/log" \
     -e MONGODB=mongodb://localhost:27017 \
-    -e WCFC_TOKEN \
     -e GROUPS_IO_API_KEY \
     -e JAVA_OPTS \
     ghcr.io/wingsofcarolina/wcfc-integration-testing:latest\
     bash -c "$CMD"
-

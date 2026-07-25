@@ -14,8 +14,8 @@ from pymongo import MongoClient
 from playwright.sync_api import sync_playwright, expect
 
 def setup_wiremock_stubs():
-    """Setup WireMock stubs for Groups.io and WCFC-Manuals APIs"""
-    print("Setting up WireMock stubs for Groups.io and WCFC-Manuals APIs...")
+    """Setup WireMock stubs for the Groups.io API"""
+    print("Setting up WireMock stubs for Groups.io...")
     
     wiremock_url = "http://localhost:8080"
     
@@ -33,6 +33,34 @@ def setup_wiremock_stubs():
     
     # Clear existing stubs
     requests.delete(f"{wiremock_url}/__admin/mappings")
+
+    groupsio_members_stub = {
+        "request": {
+            "method": "GET",
+            "urlPath": "/api/v1/getmembers",
+            "headers": {
+                "Authorization": {
+                    "matches": "Bearer .*"
+                }
+            }
+        },
+        "response": {
+            "status": 200,
+            "headers": {"Content-Type": "application/json"},
+            "jsonBody": {
+                "total_count": 3,
+                "has_more": False,
+                "data": [
+                    {"id": 1, "email": "test@example.com", "full_name": "Test User"},
+                    {"id": 2, "email": "jane.pilot@example.com", "full_name": "Jane Pilot"},
+                    {"id": 3, "email": "bob.smith@example.com", "full_name": "Bob Smith"}
+                ]
+            }
+        }
+    }
+    response = requests.post(f"{wiremock_url}/__admin/mappings", json=groupsio_members_stub)
+    if response.status_code != 201:
+        raise Exception(f"Failed to create Groups.io member-list stub: {response.text}")
     
     # Groups.io API - Add member endpoint stub
     groupsio_add_stub = {
@@ -90,56 +118,6 @@ def setup_wiremock_stubs():
     
     print("Created Groups.io remove member stub")
     
-    # WCFC-Manuals API - Add member endpoint stub
-    manuals_add_stub = {
-        "request": {
-            "method": "POST",
-            "urlPattern": "/api/member/add",
-            "headers": {
-                "X-WCFC-TOKEN": {
-                    "matches": ".*"
-                }
-            }
-        },
-        "response": {
-            "status": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            }
-        }
-    }
-    
-    response = requests.post(f"{wiremock_url}/__admin/mappings", json=manuals_add_stub)
-    if response.status_code != 201:
-        raise Exception(f"Failed to create WCFC-Manuals add member stub: {response.text}")
-    
-    print("Created WCFC-Manuals add member stub")
-    
-    # WCFC-Manuals API - Remove member endpoint stub
-    manuals_remove_stub = {
-        "request": {
-            "method": "POST",
-            "urlPattern": "/api/member/remove",
-            "headers": {
-                "X-WCFC-TOKEN": {
-                    "matches": ".*"
-                }
-            }
-        },
-        "response": {
-            "status": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            }
-        }
-    }
-    
-    response = requests.post(f"{wiremock_url}/__admin/mappings", json=manuals_remove_stub)
-    if response.status_code != 201:
-        raise Exception(f"Failed to create WCFC-Manuals remove member stub: {response.text}")
-    
-    print("Created WCFC-Manuals remove member stub")
-    
     print("WireMock stubs setup completed successfully!")
 
 def get_api_requests():
@@ -151,9 +129,7 @@ def get_api_requests():
         requests_data = response.json()
         api_requests = {
             'groupsio_add': [],
-            'groupsio_remove': [],
-            'manuals_add': [],
-            'manuals_remove': []
+            'groupsio_remove': []
         }
         
         all_requests = requests_data.get('requests', [])
@@ -166,10 +142,6 @@ def get_api_requests():
                 api_requests['groupsio_add'].append(request)
             elif '/api/v1/bulkremovemembers' in url:
                 api_requests['groupsio_remove'].append(request)
-            elif '/api/member/add' in url:
-                api_requests['manuals_add'].append(request)
-            elif '/api/member/remove' in url:
-                api_requests['manuals_remove'].append(request)
         
         return api_requests
     else:
@@ -223,16 +195,12 @@ def verify_api_call_counts(expected_counts):
 
     actual_counts = {
         'groupsio_add': len(api_requests['groupsio_add']),
-        'groupsio_remove': len(api_requests['groupsio_remove']),
-        'manuals_add': len(api_requests['manuals_add']),
-        'manuals_remove': len(api_requests['manuals_remove'])
+        'groupsio_remove': len(api_requests['groupsio_remove'])
     }
 
     print(f"API call summary:")
     print(f"  Groups.io add calls: {actual_counts['groupsio_add']}")
     print(f"  Groups.io remove calls: {actual_counts['groupsio_remove']}")
-    print(f"  WCFC-Manuals add calls: {actual_counts['manuals_add']}")
-    print(f"  WCFC-Manuals remove calls: {actual_counts['manuals_remove']}")
 
     for key, expected in expected_counts.items():
         actual = actual_counts[key]
@@ -240,19 +208,19 @@ def verify_api_call_counts(expected_counts):
             raise Exception(f"Expected exactly {expected} {key} calls, found {actual}")
 
 def verify_manuals_email_change(old_email, new_email):
-    """Verify that Manuals received the old address for removal and the new one for addition."""
-    api_requests = get_api_requests()
-    removed = json.loads(api_requests['manuals_remove'][0]['request']['body'])
-    added = json.loads(api_requests['manuals_add'][0]['request']['body'])
-
-    if removed.get('email') != old_email:
-        raise Exception(
-            f"Expected Manuals removal for {old_email}, found {removed.get('email')}"
-        )
-    if added.get('email') != new_email:
-        raise Exception(
-            f"Expected Manuals addition for {new_email}, found {added.get('email')}"
-        )
+    """Verify the existing Manuals record was updated in place."""
+    client = MongoClient('mongodb://localhost:27017/')
+    try:
+        member = client['wcfc-manuals'].Members.find_one({'id': 1001})
+        if member is None or member.get('email') != new_email:
+            raise Exception(f"Expected Manuals member email {new_email}, found {member}")
+        if client['wcfc-manuals'].Members.find_one({'email': old_email}) is not None:
+            raise Exception(f"Old Manuals email {old_email} still exists")
+        for field in ('_id', 'memberId', 'uuid', 'admin'):
+            if field not in member:
+                raise Exception(f"Manuals update failed to preserve {field}")
+    finally:
+        client.close()
 
 def verify_deposits_state(expected_deposits):
     """Verify wcfc-deposits member state after submit"""
@@ -437,9 +405,7 @@ def run_update_test():
                 expected_checkboxes=6,
                 expected_counts={
                     'groupsio_add': 1,
-                    'groupsio_remove': 1,
-                    'manuals_add': 1,
-                    'manuals_remove': 1
+                    'groupsio_remove': 1
                 },
                 expected_deposits={
                     '1001': {
@@ -460,7 +426,8 @@ def run_update_test():
                         'email': 'bob.smith@example.com',
                         'number_normalized': '1004'
                     }
-                }
+                },
+                expected_remaining_checkboxes=2,
             )
 
             run_browser_scenario(
@@ -471,9 +438,7 @@ def run_update_test():
                 expected_checkboxes=3,
                 expected_counts={
                     'groupsio_add': 1,
-                    'groupsio_remove': 0,
-                    'manuals_add': 1,
-                    'manuals_remove': 0
+                    'groupsio_remove': 0
                 },
                 expected_deposits={
                     '1001': {
@@ -490,7 +455,7 @@ def run_update_test():
                     }
                 },
                 unchecked_checkbox_indices=(2,),
-                expected_remaining_checkboxes=1,
+                expected_remaining_checkboxes=2,
             )
 
             run_browser_scenario(
@@ -501,9 +466,7 @@ def run_update_test():
                 expected_checkboxes=2,
                 expected_counts={
                     'groupsio_add': 0,
-                    'groupsio_remove': 0,
-                    'manuals_add': 1,
-                    'manuals_remove': 1
+                    'groupsio_remove': 0
                 },
                 expected_deposits={
                     '1001': {
@@ -534,9 +497,7 @@ def run_update_test():
                 expected_checkboxes=7,
                 expected_counts={
                     'groupsio_add': 1,
-                    'groupsio_remove': 1,
-                    'manuals_add': 1,
-                    'manuals_remove': 1
+                    'groupsio_remove': 1
                 },
                 expected_deposits={
                     '1001': {
@@ -559,6 +520,7 @@ def run_update_test():
                     }
                 },
                 prepare_data=change_deposits_member_number,
+                expected_remaining_checkboxes=2,
             )
 
             print("✅ Update flow completed successfully!")

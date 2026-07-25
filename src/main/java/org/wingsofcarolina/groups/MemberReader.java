@@ -257,6 +257,20 @@ public abstract class MemberReader {
     }
   }
 
+  public List<Member> excludedFromSyncMembers() {
+    List<Member> excluded = new java.util.ArrayList<Member>();
+    for (Member member : memberList.values()) {
+      if (
+        isNotActive(member) ||
+        Boolean.TRUE.equals(member.getIgnoredForSync()) ||
+        isCruft(member)
+      ) {
+        excluded.add(member);
+      }
+    }
+    return excluded;
+  }
+
   public Set<Integer> ignoredForSyncMemberIds() {
     Set<Integer> ignored = new HashSet<Integer>();
     Iterator<Map.Entry<Integer, Member>> iterator = memberList.entrySet().iterator();
@@ -291,7 +305,13 @@ public abstract class MemberReader {
   }
 
   private boolean isCruft(Member member) {
-    String name = member.getName();
+    return isExcludedName(member.getName());
+  }
+
+  public static boolean isExcludedName(String name) {
+    if (name == null) {
+      return false;
+    }
     switch (name) {
       case "Childrens Flight Hope":
         return true;

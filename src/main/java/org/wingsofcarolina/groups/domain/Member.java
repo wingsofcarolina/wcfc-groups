@@ -1,21 +1,6 @@
 package org.wingsofcarolina.groups.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Id;
-import dev.morphia.annotations.Transient;
-import java.util.List;
-import org.bson.types.ObjectId;
-import org.wingsofcarolina.groups.domain.dao.MemberDAO;
-
-@Entity("Members")
 public class Member {
-
-  private static MemberDAO dao = new MemberDAO();
-
-  @Id
-  @JsonIgnore
-  private ObjectId dbid;
 
   Integer id;
   String firstName;
@@ -24,10 +9,8 @@ public class Member {
   String email;
   Integer level;
 
-  @Transient
   Boolean checked;
 
-  @Transient
   Boolean ignoredForSync;
 
   public Member() {
@@ -44,6 +27,11 @@ public class Member {
     this.level = -1;
     this.checked = false;
     this.ignoredForSync = false;
+  }
+
+  public Member(Integer id, String name, String email, Integer level) {
+    this(id, name, email);
+    this.level = level;
   }
 
   public Member(Integer id, String fname, String lname, String email, Integer level) {
@@ -141,38 +129,6 @@ public class Member {
       checked +
       "]"
     );
-  }
-
-  /*
-   * Database Management Functionality
-   */
-  public static long count() {
-    return dao.count();
-  }
-
-  public static void drop() {
-    dao.drop();
-  }
-
-  @SuppressWarnings("unchecked")
-  public static List<Member> getAll() {
-    return (List<Member>) dao.getAll();
-  }
-
-  public static Member getByID(long id) {
-    return (Member) dao.getByID(id);
-  }
-
-  public static Member getByEmail(String email) {
-    return (Member) dao.getByEmail(email);
-  }
-
-  public void save() {
-    dao.save(this);
-  }
-
-  public void delete() {
-    dao.delete(this);
   }
 
   private void setNamePartsFromName(String name) {

@@ -7,14 +7,10 @@ import io.undertow.server.handlers.form.EagerFormParsingHandler;
 import io.undertow.server.handlers.resource.PathResourceManager;
 import io.undertow.server.handlers.resource.ResourceHandler;
 import java.nio.file.Paths;
-import org.wingsofcarolina.groups.persistence.Persistence;
 
 public class HttpServer {
 
   public void run(final String[] args) {
-    // Set up the Persistence singleton
-    new Persistence().initialize(System.getenv("MONGODB"));
-
     RoutingHandler handler = new RoutingHandler();
     handler.addHandler("GET", "*", new GetHandler());
     handler.addHandler(
@@ -23,12 +19,6 @@ public class HttpServer {
       new BlockingHandler(new EagerFormParsingHandler(new UploadHandler()))
     );
     handler.addHandler("POST", "/update", new BlockingHandler(new UpdateHandler()));
-    handler.addHandler(
-      "POST",
-      "/populate",
-      new BlockingHandler(new EagerFormParsingHandler(new PopulateHandler()))
-    );
-    handler.addHandler("POST", "/test", new BlockingHandler(new TestHandler()));
     handler.addHandler("GET", "/api/version", new VersionHandler());
 
     Undertow server = Undertow

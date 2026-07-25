@@ -7,7 +7,6 @@ import io.undertow.util.Headers;
 import io.undertow.util.StatusCodes;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Iterator;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +16,7 @@ import org.wingsofcarolina.groups.domain.EmailChange;
 import org.wingsofcarolina.groups.domain.Member;
 import org.wingsofcarolina.groups.http.DepositsService;
 import org.wingsofcarolina.groups.http.GroupsIoService;
-import org.wingsofcarolina.groups.http.ManualsService;
+import org.wingsofcarolina.groups.http.ManualsDatabaseService;
 
 public class UpdateHandler implements HttpHandler {
 
@@ -66,9 +65,6 @@ public class UpdateHandler implements HttpHandler {
       "Deposits changed --> " + depositsChanged.size() + " : " + depositsChanged
     );
 
-    // Create service to access the Manuals website for database updates
-    ManualsService mio = new ManualsService().initialize();
-
     GroupsIoService gio = null;
     if (groupsAdded.size() > 0 || groupsRemoved.size() > 0) {
       // Initialize Groups.io service with API key only when Groups.io must change.
@@ -87,43 +83,22 @@ public class UpdateHandler implements HttpHandler {
       logger.info("Groups.io service initialized with API key");
     }
 
-    logger.info("Updating Groups.io membership list and member database.");
+    logger.info("Updating Groups.io membership list.");
     if (groupsAdded.size() > 0) {
       gio.addMultipleMembers(groupsAdded);
-      Iterator<Member> it = groupsAdded.iterator();
-      while (it.hasNext()) {
-        Member member = it.next();
-        member.save();
-      }
     }
     if (groupsRemoved.size() > 0) {
       gio.removeMultipleMembers(groupsRemoved);
-      Iterator<Member> it = groupsRemoved.iterator();
-      while (it.hasNext()) {
-        Member member = it.next();
-        member = Member.getByID(member.getId());
-        if (member != null) {
-          member.delete();
-        }
-      }
     }
-    if (manualsAdded.size() > 0) {
-      mio.addMultipleMembers(manualsAdded);
-    }
-    if (manualsRemoved.size() > 0) {
-      mio.removeMultipleMembers(manualsRemoved);
-    }
-    if (manualsChanged.size() > 0) {
-      logger.info("Updating changed email addresses in Manuals and local database only.");
-      Iterator<EmailChange> it = manualsChanged.iterator();
-      while (it.hasNext()) {
-        EmailChange emailChange = it.next();
-        Member oldMember = emailChange.getOldMember();
-        Member newMember = emailChange.getNewMember();
-
-        mio.removeMember(oldMember);
-        mio.addMember(newMember);
-        updateLocalMember(newMember);
+    if (
+      manualsAdded.size() > 0 || manualsRemoved.size() > 0 || manualsChanged.size() > 0
+    ) {
+      try (
+        ManualsDatabaseService manualsService = new ManualsDatabaseService().initialize()
+      ) {
+        manualsService.removeMultipleMembers(manualsRemoved);
+        manualsService.updateMultipleMembers(manualsChanged);
+        manualsService.addMultipleMembers(manualsAdded);
       }
     }
     if (
@@ -150,7 +125,7 @@ public class UpdateHandler implements HttpHandler {
     int originalSize = members.size();
     int removedCount = 0;
 
-    Iterator<Member> removedIt = members.iterator();
+    var removedIt = members.iterator();
     while (removedIt.hasNext()) {
       Member member = removedIt.next();
       // Handle null values properly - if checked is null or false, remove the member
@@ -185,7 +160,7 @@ public class UpdateHandler implements HttpHandler {
       return List.of();
     }
 
-    Iterator<EmailChange> it = changes.iterator();
+    var it = changes.iterator();
     while (it.hasNext()) {
       EmailChange emailChange = it.next();
       if (!Boolean.TRUE.equals(emailChange.getChecked())) {
@@ -200,7 +175,7 @@ public class UpdateHandler implements HttpHandler {
       return List.of();
     }
 
-    Iterator<DepositsMember> it = members.iterator();
+    var it = members.iterator();
     while (it.hasNext()) {
       DepositsMember member = it.next();
       if (!Boolean.TRUE.equals(member.getChecked())) {
@@ -214,7 +189,7 @@ public class UpdateHandler implements HttpHandler {
     if (changes == null) {
       return List.of();
     }
-    Iterator<DepositsChange> it = changes.iterator();
+    var it = changes.iterator();
     while (it.hasNext()) {
       DepositsChange change = it.next();
       if (!Boolean.TRUE.equals(change.getChecked())) {
@@ -222,22 +197,5 @@ public class UpdateHandler implements HttpHandler {
       }
     }
     return changes;
-  }
-
-  private void updateLocalMember(Member newMember) {
-    Member existingMember = Member.getByID(newMember.getId());
-    if (existingMember == null) {
-      logger.warn(
-        "Could not find local member {} while updating changed email; saving new record",
-        newMember.getId()
-      );
-      newMember.save();
-      return;
-    }
-
-    existingMember.setName(newMember.getName());
-    existingMember.setEmail(newMember.getEmail());
-    existingMember.setLevel(newMember.getLevel());
-    existingMember.save();
   }
 }

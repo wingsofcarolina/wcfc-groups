@@ -15,27 +15,27 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.1.0",
 		"@eslint/js": "^10.0.1",
-		"@smui/button": "^9.0.1",
-		"@smui/icon-button": "^9.0.1",
-		"@smui/textfield": "^9.0.1",
+		"@smui/button": "^9.0.2",
+		"@smui/icon-button": "^9.0.2",
+		"@smui/textfield": "^9.0.2",
 		"@sveltejs/adapter-auto": "^7.0.1",
-		"@sveltejs/kit": "^2.69.1",
+		"@sveltejs/kit": "^2.70.2",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
-		"eslint": "^10.6.0",
+		"eslint": "^10.8.0",
 		"eslint-config-prettier": "^10.0.1",
-		"eslint-plugin-svelte": "^3.20.0",
-		"globals": "^17.7.0",
-		"prettier": "^3.9.4",
+		"eslint-plugin-svelte": "^3.22.0",
+		"globals": "^17.9.0",
+		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
-		"svelte": "^5.56.4",
-		"vite": "^8.1.3"
+		"svelte": "^5.56.8",
+		"vite": "^8.2.0"
 	},
 	"dependencies": {
 		"@beyonk/svelte-notifications": "^4.3.0",
 		"@sveltejs/adapter-static": "^3.0.10",
-		"svelte-check": "^4.7.2",
+		"svelte-check": "^4.7.4",
 		"svelte-pdf": "^2.0.2",
-		"typescript": "^6.0.3"
+		"typescript": "^7.0.2"
 	},
 	"overrides": {
 		"cookie": "^0.7.2"

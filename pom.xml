@@ -41,7 +41,7 @@
     <dependency>
       <groupId>io.undertow</groupId>
       <artifactId>undertow-core</artifactId>
-      <version>2.4.2.Final</version>
+      <version>2.4.3.Final</version>
     </dependency>
     <!--
 		https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
@@ -66,7 +66,7 @@
     <dependency>
       <groupId>org.jsoup</groupId>
       <artifactId>jsoup</artifactId>
-      <version>1.23.1</version>
+      <version>1.23.2</version>
     </dependency>
     <!--
 		https://mvnrepository.com/artifact/com.squareup.retrofit2/converter-gson -->
